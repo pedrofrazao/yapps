@@ -4,7 +4,7 @@
     "columns": 10
   },
   "cells": {
-    "num_by_types": { "a": 1, "b": 2, "c": 3, "d": 4 },
+    "num_by_types": { "a": 1, "b": 2, "c": 3, "d": 4 }
   },
   "cell_types": {
     "a": {

@@ -8,6 +8,7 @@ class MatrixGUI:
         self.rows = rows
         self.cols = cols
         self.running = False
+        self.last_updates = []  # Attribute to store the list of the last updates
 
         # Create a frame for the left side (buttons, text area, and plot)
         self.left_frame = tk.Frame(root, width=int(root.winfo_screenwidth() / 3))
@@ -44,18 +45,42 @@ class MatrixGUI:
 
         # Bind the configure event to resize the matrix cells
         self.root.bind("<Configure>", self.on_resize)
+        # Bind the mouse click event to show popup
+        self.canvas.bind("<Button-1>", self.show_popup)
+        # Bind the keyboard shortcut to exit the application
+        self.root.bind("<Control-q>", self.exit_application)
 
     def draw_matrix(self):
         self.canvas.delete("all")
-        cell_width = self.canvas.winfo_width() // self.cols
-        cell_height = self.canvas.winfo_height() // self.rows
-        for i in range(self.rows):
-            for j in range(self.cols):
-                color = self.random_color()
-                self.canvas.create_rectangle(j * cell_width, i * cell_height, (j + 1) * cell_width, (i + 1) * cell_height, fill=color)
+        self.cell_width = self.canvas.winfo_width() // self.cols
+        self.cell_height = self.canvas.winfo_height() // self.rows
+        self.cell_colors = {}
+        for x,y,c,t in self.last_updates:
+            x1 = y * self.cell_width
+            y1 = x * self.cell_height
+            x2 = x1 + self.cell_width
+            y2 = y1 + self.cell_height
+            self.canvas.create_rectangle(x1, y1, x2, y2, fill=c, outline="black")
+            self.canvas.create_text((x1 + x2) / 2, (y1 + y2) / 2, text=t, fill="black")
+
 
     def random_color(self):
         return "#{:06x}".format(random.randint(0, 0xFFFFFF))
+
+    def show_popup(self, event):
+        # Calculate the row and column of the cell under the mouse
+        col = int(event.x // self.cell_width)
+        row = int(event.y // self.cell_height)
+        if 0 <= col < self.cols and 0 <= row < self.rows:
+            color = self.cell_colors[(row, col)]
+            # Create a popup message
+            popup = tk.Toplevel(self.root)
+            popup.wm_overrideredirect(True)
+            popup.geometry(f"+{event.x_root + 10}+{event.y_root + 10}")
+            label = tk.Label(popup, text=f"Cell ({row}, {col})\nColor: {color}", background="yellow")
+            label.pack()
+            # Destroy the popup after a short delay
+            self.root.after(1000, popup.destroy)
 
     def start(self):
         self.log_message("Start button clicked")
@@ -80,3 +105,27 @@ class MatrixGUI:
 
     def on_resize(self, event):
         self.draw_matrix()
+
+    def exit_application(self, event=None):
+        self.root.quit()
+
+    def update_display(self, updates):
+        self.clear_matrix
+        self.last_updates = updates  # Store the updates in the last_updates attribute
+        for (row, col, color, caption) in updates:
+            if 0 <= row < self.rows and 0 <= col < self.cols:
+                x1 = col * self.cell_width
+                y1 = row * self.cell_height
+                x2 = x1 + self.cell_width
+                y2 = y1 + self.cell_height
+                self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="black")
+                self.canvas.create_text((x1 + x2) / 2, (y1 + y2) / 2, text=caption, fill="black")
+
+    def clear_matrix(self):
+        self.canvas.delete("all")
+        self.cell_colors.clear()
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = MatrixGUI(root, 10, 10)
+    root.mainloop()
