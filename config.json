@@ -1,0 +1,27 @@
+{
+  "matrix_size": {
+    "rows": 100,
+    "columns": 10
+  },
+  "cells": {
+    "num_by_types": { "a": 1, "b": 2, "c": 3, "d": 4 },
+  },
+  "cell_types": {
+    "a": {
+      "name": "A",
+      "color": "#FF0000"
+    },
+    "b": {
+      "name": "B",
+      "color": "#00FF00"
+    },
+    "c": {
+      "name": "C",
+      "color": "#0000FF"
+    },
+    "d": {
+      "name": "D",
+      "color": "#FFFF00"
+    }
+  }
+}
