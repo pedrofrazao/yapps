@@ -1,4 +1,6 @@
 import uuid
+import pickle
+import base64
 
 class ArenaObject:
     """A class representing an object in the arena."""
@@ -13,24 +15,12 @@ class ArenaObject:
 
     def serialize(self):
         """Serialize the ArenaObject to a dictionary."""
-        data = {
-            'name': self.name,
-            'id': str(self.id),
-            'volume': self.volume,
-            'object': self.object.serialize() if self.object and hasattr(self.object, 'serialize') else None
-        }
-        return data
+        return base64.b64encode(pickle.dumps(self)).decode('utf-8')
     
     @classmethod
     def deserialize(cls, data):
         """Deserialize a dictionary to an ArenaObject."""
-        obj = cls(
-            name=data['name'],
-            volume=data['volume'],
-            object=None  # Assuming nested objects are not handled in this example
-        )
-        obj.id = uuid.UUID(data['id'])
-        return obj
+        return pickle.loads(base64.b64decode(data))
 
     def setposition(self, x, y):
         self.x = x
@@ -59,11 +49,7 @@ class Arena:
             'cols': self.cols,
             'type': self.type,
             'max_volume_per_position': self.max_volume_per_position,
-            'grid': [
-                [
-                    [obj.serialize() for obj in cell] for cell in row
-                ] for row in self.grid
-            ],
+            'objects': [obj.serialize() for row in self.grid for cell in row for obj in cell],
             'num_objects': self.num_objects
         }
         return data
@@ -72,17 +58,10 @@ class Arena:
     def deserialize(cls, data):
         """Deserialize a dictionary to an Arena object."""
         arena = cls(data['rows'], data['cols'], data['type'], data['max_volume_per_position'])
-        arena.num_objects = data['num_objects']
-        for i, row in enumerate(data['grid']):
-            for j, cell in enumerate(row):
-                for obj_data in cell:
-                    obj = ArenaObject(
-                        name=obj_data['name'],
-                        volume=obj_data['volume'],
-                        object=None  # Assuming nested objects are not handled in this example
-                    )
-                    obj.id = uuid.UUID(obj_data['id'])
-                    arena.grid[i][j].append(obj)
+        # arena.num_objects = data['num_objects'] -- Will be defined on the add_to_position method phase
+        for obj_data in data['objects']:
+            obj = ArenaObject.deserialize(obj_data)
+            arena.add_to_position(obj.x,obj.y,obj)
         return arena
 
     def get_position(self, x, y):

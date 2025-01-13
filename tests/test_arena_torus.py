@@ -86,6 +86,9 @@ class TestArena(unittest.TestCase):
         self.assertTrue(self.arena.move_object_position(self.obj3, 3, 1))
         self.assertIn(self.obj3, self.arena.get_position(4, 0))
 
+
+
+
 class TestArenaMove(unittest.TestCase):
 
     def setUp(self):
@@ -113,6 +116,44 @@ class TestArenaMove(unittest.TestCase):
         self.assertTrue( self.arena.move_object_position(self.p1, 7, 1) )
         self.assertIn(self.p2, self.arena.get_position(1, 1))
         self.assertIn(self.p1, self.arena.get_position(3, 0))
+
+class TestArenaSerialize(unittest.TestCase):
+
+    def setUp(self):
+        self.arena = Arena(5, 5, 'torus', max_volume_per_position=100)
+        self.obj1 = ArenaObject("rock",volume=100)
+        self.arena.add_to_position(0, 0, self.obj1)
+        self.obj2 = ArenaObject("rock",volume=100)
+        self.arena.add_to_position(1, 0, self.obj2)
+        self.obj3 = ArenaObject("rock",volume=100)
+        self.arena.add_to_position(2, 0, self.obj3)
+
+        self.p1 = ArenaObject("p1")
+        self.p2 = ArenaObject("p2")
+        self.arena.add_to_position(1, 1, self.p1)
+        self.arena.add_to_position(1, 1, self.p2)
+
+    def test_serialize_arena(self):
+        serialized_data = self.arena.serialize()
+        # print(serialized_data)
+        self.assertEqual(serialized_data['rows'], 5)
+        self.assertEqual(serialized_data['cols'], 5)
+        self.assertEqual(serialized_data['type'], 'torus')
+        self.assertEqual(serialized_data['max_volume_per_position'], 100)
+        self.assertEqual(serialized_data['num_objects'], 5)
+
+        a2 = Arena.deserialize(serialized_data)
+        self.assertEqual(a2.rows, self.arena.rows)
+        self.assertEqual(a2.cols, self.arena.cols)
+        self.assertEqual(a2.type, self.arena.type)
+        self.assertEqual(a2.max_volume_per_position, self.arena.max_volume_per_position)
+        self.assertEqual(a2.num_objects, self.arena.num_objects)
+        for row in range(self.arena.rows):
+            for col in range(self.arena.cols):
+                a2_pos_ids = [o.id for o in a2.get_position(row, col)]
+                for obj in self.arena.get_position(row, col):
+                    self.assertIn(obj.id, a2_pos_ids)
+
 
 
 if __name__ == '__main__':
