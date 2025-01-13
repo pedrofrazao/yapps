@@ -4,12 +4,42 @@ class ArenaObject:
     """A class representing an object in the arena."""
     def __init__(self, name, volume=1, object=None):
         self.name = name
+        self.x = None
+        self.y = None
         self.id = uuid.uuid4()
         self.volume = volume
         self.object = object
 
+    def serialize(self):
+        """Serialize the ArenaObject to a dictionary."""
+        data = {
+            'name': self.name,
+            'id': str(self.id),
+            'volume': self.volume,
+            'object': self.object.serialize() if self.object and hasattr(self.object, 'serialize') else None
+        }
+        return data
+    
+    @classmethod
+    def deserialize(cls, data):
+        """Deserialize a dictionary to an ArenaObject."""
+        obj = cls(
+            name=data['name'],
+            volume=data['volume'],
+            object=None  # Assuming nested objects are not handled in this example
+        )
+        obj.id = uuid.UUID(data['id'])
+        return obj
+
+    def setposition(self, x, y):
+        self.x = x
+        self.y = y
+
     def __repr__(self):
         return f"ArenaObject(name={self.name})"
+    
+    def __str__(self):
+        return ','.join( self.name, self.x, self.y )
 
 class Arena:
     """A class representing the arena."""
@@ -20,6 +50,39 @@ class Arena:
         self.max_volume_per_position = max_volume_per_position
         self.grid = [[[] for _ in range(cols)] for _ in range(rows)]
         self.num_objects = 0
+
+    def serialize(self):
+        """Serialize the Arena to a dictionary."""
+        data = {
+            'rows': self.rows,
+            'cols': self.cols,
+            'type': self.type,
+            'max_volume_per_position': self.max_volume_per_position,
+            'grid': [
+                [
+                    [obj.serialize() for obj in cell] for cell in row
+                ] for row in self.grid
+            ],
+            'num_objects': self.num_objects
+        }
+        return data
+    
+    @classmethod
+    def deserialize(cls, data):
+        """Deserialize a dictionary to an Arena object."""
+        arena = cls(data['rows'], data['cols'], data['type'], data['max_volume_per_position'])
+        arena.num_objects = data['num_objects']
+        for i, row in enumerate(data['grid']):
+            for j, cell in enumerate(row):
+                for obj_data in cell:
+                    obj = ArenaObject(
+                        name=obj_data['name'],
+                        volume=obj_data['volume'],
+                        object=None  # Assuming nested objects are not handled in this example
+                    )
+                    obj.id = uuid.UUID(obj_data['id'])
+                    arena.grid[i][j].append(obj)
+        return arena
 
     def get_position(self, x, y):
         """Get the list of objects at position (x, y)."""
@@ -42,6 +105,8 @@ class Arena:
 
     def set_position(self, x, y, objects):
         """Set the list of objects at position (x, y)."""
+        for obj in objects:
+            obj.setposition(x,y)
         self.grid[x][y] = objects
         self.num_objects += len(objects)
 
@@ -51,6 +116,7 @@ class Arena:
             return False
         self.grid[x][y].append(obj)
         self.num_objects += 1
+        obj.setposition(x,y)
         return True
 
     def remove_from_position(self, x, y, obj):
@@ -106,6 +172,7 @@ class Arena:
         if self.add_to_position(x, y, obj) is False:
             self.add_to_position(ox, oy, obj)
             return False
+        obj.setposition(x,y)
         return True
     
     def __str__(self):
@@ -115,3 +182,25 @@ class Arena:
             row_str = " ".join(str(len(cell)) for cell in row)
             arena_str += row_str + "\n"
         return arena_str
+    
+class Surrounding:
+    """A class representing the surrounding of an object in the arena."""
+    def __init__(self, arena, x, y, direction=0, length=1):
+        self.arena = arena
+        self.x = x
+        self.y = y
+        self.direction = direction
+        self.length = length
+        self.objects = self.get_surrounding()
+
+    def get_surrounding(self):
+        """Get the surrounding objects of the current position."""
+        surrounding = []
+        for i in range( self.x - self.length, self.x + self.length +1 ):
+            for j in range( self.y - self.length, self.y + self.length +1 ):
+                pi,pj = self.arena.convert_position(i, j)
+                if pi is None or pj is None:
+                    continue
+                else:
+                    surrounding.extend(self.arena.get_position(pi, pj))
+        return surrounding
