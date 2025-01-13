@@ -12,7 +12,7 @@ from arena import Arena, ArenaObject
 class TestArena(unittest.TestCase):
 
     def setUp(self):
-        self.arena = Arena(5, 5, 'torus', 2)
+        self.arena = Arena(5, 5, 'torus', max_volume_per_position=2)
         self.obj1 = ArenaObject("Object1")
         self.obj2 = ArenaObject("Object2")
         self.obj3 = ArenaObject("Object3")
@@ -49,11 +49,11 @@ class TestArena(unittest.TestCase):
 
     def test_move_object_position(self):
         self.arena.set_position(1, 1, [self.obj1, self.obj2])
-        self.arena.move_object_position(1, 1, self.obj1, 'right', 2)
+        self.arena.move_object_position(self.obj1, 'right', 2)
         self.assertNotIn(self.obj1, self.arena.get_position(1, 1))
         self.assertIn(self.obj1, self.arena.get_position(1, 3))
         self.assertIn(self.obj2, self.arena.get_position(1, 1))
-        self.arena.move_object_position(1, 3, self.obj1, 'right', 3)
+        self.arena.move_object_position(self.obj1, 'right', 3)
         self.assertIn(self.obj2, self.arena.get_position(1, 1))
         self.assertIn(self.obj1, self.arena.get_position(1, 1))
         self.assertEqual( 2, self.arena.num_objects)
@@ -64,7 +64,7 @@ class TestArena(unittest.TestCase):
         self.assertFalse(self.arena.add_to_position(1, 1, self.obj3))
         self.assertEqual( 2, self.arena.get_num_objects(1, 1))
         self.assertTrue(self.arena.add_to_position(1, 0, self.obj3))
-        self.assertFalse( self.arena.move_object_position(1, 0, self.obj3, 'right', 1) )
+        self.assertFalse( self.arena.move_object_position(self.obj3, 'right', 1) )
         self.assertIn(self.obj1, self.arena.get_position(1, 1))
         self.assertIn(self.obj2, self.arena.get_position(1, 1))
         self.assertNotIn(self.obj3, self.arena.get_position(1, 1))
@@ -77,14 +77,43 @@ class TestArena(unittest.TestCase):
         self.assertTrue(self.arena.add_to_position(0, 4, self.obj3))
 
         # apply some moves
-        self.assertTrue(self.arena.move_object_position(0, 0, self.obj1, 1, 1))
+        self.assertTrue(self.arena.move_object_position(self.obj1, 1, 1))
         self.assertIn(self.obj1, self.arena.get_position(4, 4))
 
-        self.assertTrue(self.arena.move_object_position(4, 4, self.obj2, 6, 1))
+        self.assertTrue(self.arena.move_object_position(self.obj2, 6, 1))
         self.assertIn(self.obj2, self.arena.get_position(4, 0))
 
-        self.assertTrue(self.arena.move_object_position(0, 4, self.obj3, 3, 1))
+        self.assertTrue(self.arena.move_object_position(self.obj3, 3, 1))
         self.assertIn(self.obj3, self.arena.get_position(4, 0))
+
+class TestArenaMove(unittest.TestCase):
+
+    def setUp(self):
+        self.arena = Arena(5, 5, 'torus', max_volume_per_position=100)
+        self.obj1 = ArenaObject("rock",volume=100)
+        self.arena.add_to_position(0, 0, self.obj1)
+        self.obj2 = ArenaObject("rock",volume=100)
+        self.arena.add_to_position(1, 0, self.obj2)
+        self.obj3 = ArenaObject("rock",volume=100)
+        self.arena.add_to_position(2, 0, self.obj3)
+
+        self.p1 = ArenaObject("p1")
+        self.p2 = ArenaObject("p2")
+        self.arena.add_to_position(1, 1, self.p1)
+        self.arena.add_to_position(1, 1, self.p2)
+
+    def test_moves_volume(self):
+        self.assertFalse( self.arena.move_object_position(self.p1, 4, 1) )
+        self.assertIn(self.p1, self.arena.get_position(1, 1))
+        self.assertFalse( self.arena.move_object_position(self.p1, 7, 1) )
+        self.assertIn(self.p1, self.arena.get_position(1, 1))
+        self.assertTrue( self.arena.move_object_position(self.p1, 8, 1) )
+        self.assertIn(self.p2, self.arena.get_position(1, 1))
+        self.assertIn(self.p1, self.arena.get_position(2, 1))
+        self.assertTrue( self.arena.move_object_position(self.p1, 7, 1) )
+        self.assertIn(self.p2, self.arena.get_position(1, 1))
+        self.assertIn(self.p1, self.arena.get_position(3, 0))
+
 
 if __name__ == '__main__':
     unittest.main()

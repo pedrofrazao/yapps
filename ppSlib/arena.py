@@ -7,6 +7,7 @@ class ArenaObject:
         self.x = None
         self.y = None
         self.id = uuid.uuid4()
+        self.remove_on_move_out = True
         self.volume = volume
         self.object = object
 
@@ -135,7 +136,7 @@ class Arena:
         else:
             return (None, None)
 
-    def move_object_position(self, x, y, obj, direction, length=1):
+    def move_object_position(self, obj, direction, length=1):
         """Move an object from position (x, y) in the given direction.
         
         direction can be 'up', 'down', 'left', or 'right' OR
@@ -143,9 +144,9 @@ class Arena:
         4 6
         789
         where 5 is the object and 1, 2, 3, 4, 6, 7, 8, 9 are the directions
-        """
-        self.remove_from_position(x, y, obj)
-        ox, oy = x, y
+        """ 
+        x = obj.x
+        y = obj.y
         if direction == 'up' or direction == 2:
             x -= length
         elif direction == 'down' or direction == 8:
@@ -168,13 +169,23 @@ class Arena:
             y += length
         x, y = self.convert_position(x, y)
         if x is None or y is None:
+            # impossible move
+            if obj.remove_on_move_out:
+                # remove object from arena
+                self.remove_from_position(obj.x, obj.y, obj)
+                return True
+            else:
+                return False
+
+        # apply the move
+        ox,oy = obj.x, obj.y
+        if self.add_to_position(x, y, obj) is True:
+            self.remove_from_position(ox, oy, obj)
+            return True
+        else:
             return False
-        if self.add_to_position(x, y, obj) is False:
-            self.add_to_position(ox, oy, obj)
-            return False
-        obj.setposition(x,y)
-        return True
-    
+
+
     def __str__(self):
         """Create a string representation of the arena with the number of objects at each position."""
         arena_str = ""

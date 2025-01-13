@@ -48,11 +48,11 @@ class TestArena(unittest.TestCase):
 
     def test_move_object_position(self):
         self.arena.set_position(1, 1, [self.obj1, self.obj2])
-        self.arena.move_object_position(1, 1, self.obj1, 'right', 2)
+        self.arena.move_object_position(self.obj1, 'right', 2)
         self.assertNotIn(self.obj1, self.arena.get_position(1, 1))
         self.assertIn(self.obj1, self.arena.get_position(1, 3))
         self.assertIn(self.obj2, self.arena.get_position(1, 1))
-        self.arena.move_object_position(1, 3, self.obj1, 'right', 3)
+        self.arena.move_object_position(self.obj1, 'right', 3)
         self.assertIn(self.obj2, self.arena.get_position(1, 1))
         self.assertNotIn(self.obj1, self.arena.get_position(1, 1))
         self.assertEqual( 1, self.arena.num_objects)
