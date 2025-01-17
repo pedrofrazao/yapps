@@ -1,9 +1,12 @@
 import uuid
 import pickle
 import base64
+import random
+
+from pos_object import positional_object
 
 class ArenaObject:
-    """A class representing an object in the arena."""
+    """Generic class to representing an object in the arena."""
     def __init__(self, name, volume=1, object=None):
         self.name = name
         self.x = None
@@ -12,6 +15,9 @@ class ArenaObject:
         self.remove_on_move_out = True
         self.volume = volume
         self.object = object
+        self.can_move = True
+        self.msg = []
+        self.max_msg = 5
 
     def serialize(self):
         """Serialize the ArenaObject to a dictionary."""
@@ -31,10 +37,14 @@ class ArenaObject:
     
     def __str__(self):
         return ','.join( self.name, self.x, self.y )
+    
+    def add_msg(self, msg):
+        self.msg.append(msg)
+        self.msg = self.msg[-self.max_msg:]
 
 class Arena:
     """A class representing the arena."""
-    def __init__(self, rows, cols, arena_type='plan', max_volume_per_position=100):
+    def __init__(self, rows, cols, arena_type='torus', max_volume_per_position=100):
         self.rows = rows
         self.cols = cols
         self.type = arena_type
@@ -63,6 +73,31 @@ class Arena:
             obj = ArenaObject.deserialize(obj_data)
             arena.add_to_position(obj.x,obj.y,obj)
         return arena
+
+    # def json_serialize(self):
+    #     return json.dumps(self.serialize())
+    
+    # @classmethod
+    # def json_deserialize(cls, data):    
+    #     return cls.deserialize(json.loads(data))
+
+    def get_objects(self):
+        return [obj for row in self.grid for cell in row for obj in cell]
+
+    def get_pos_obj_list(self):
+        # pos_obj_list = []
+        # for row in range(self.rows):
+        #     for col in range(self.cols):
+        #         for obj in self.grid[row][col]:
+        #             pos_obj_list.append(positional_object(row, col, None, obj.name))
+        # return pos_obj_list
+        return [positional_object(obj.x, obj.y, None, obj.name) for obj in self.get_objects()]
+
+    def _move_objects_at_random(self):
+        for o in self.get_objects():
+            if o.can_move:
+                self.move_object_position(o, random.choice(['up', 'down', 'left', 'right']))
+
 
     def get_position(self, x, y):
         """Get the list of objects at position (x, y)."""
@@ -152,6 +187,7 @@ class Arena:
             if obj.remove_on_move_out:
                 # remove object from arena
                 self.remove_from_position(obj.x, obj.y, obj)
+                obj.add_msg(f"{obj.name} moved out ({obj.x},{obj.y}) -> {x},{y})")
                 return True
             else:
                 return False
@@ -160,6 +196,7 @@ class Arena:
         ox,oy = obj.x, obj.y
         if self.add_to_position(x, y, obj) is True:
             self.remove_from_position(ox, oy, obj)
+            obj.add_msg(f"{obj.name} moved ({ox,oy}) -> {x},{y})")
             return True
         else:
             return False

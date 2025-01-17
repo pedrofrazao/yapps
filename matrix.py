@@ -1,6 +1,7 @@
 import tkinter as tk
 import random
 from time_series_plot import TimeSeriesPlot  # Import the TimeSeriesPlot class
+from arena import Arena, ArenaObject
 
 class MatrixGUI:
     def __init__(self, root, rows, cols):
@@ -9,6 +10,12 @@ class MatrixGUI:
         self.cols = cols
         self.running = False
         self.last_updates = []  # Attribute to store the list of the last updates
+        self.arena = Arena(rows, cols)
+        ## TEST ONLY
+        for i in range(1):
+            obj = ArenaObject(f"Object{i}")
+            self.arena.add_to_position(random.randint(0, rows-1), random.randint(0, cols-1), obj)
+        ## TEST ONLY
 
         # Create a frame for the left side (buttons, text area, and plot)
         self.left_frame = tk.Frame(root, width=int(root.winfo_screenwidth() / 3))
@@ -25,8 +32,8 @@ class MatrixGUI:
         self.stop_button = tk.Button(self.button_frame, text="Stop", command=self.stop)
         self.stop_button.pack(side=tk.LEFT)
 
-        self.pause_button = tk.Button(self.button_frame, text="Pause", command=self.pause)
-        self.pause_button.pack(side=tk.LEFT)
+        self.step_button = tk.Button(self.button_frame, text="Step", command=self._single_step)
+        self.step_button.pack(side=tk.LEFT)
 
         # Create a text area for execution messages
         self.text_area = tk.Text(self.left_frame, height=10)
@@ -50,19 +57,45 @@ class MatrixGUI:
         # Bind the keyboard shortcut to exit the application
         self.root.bind("<Control-q>", self.exit_application)
 
+
+    def _draw_matrix_cells(self):
+        for o in self.last_updates:
+            x, y, c, t = o.get()
+            if 0 <= x < self.rows and 0 <= y < self.cols:
+                x1 = y * self.cell_width
+                y1 = x * self.cell_height
+                x2 = x1 + self.cell_width
+                y2 = y1 + self.cell_height
+                self.canvas.create_rectangle(x1, y1, x2, y2, fill=c, outline="black")
+                self.canvas.create_text((x1 + x2) / 2, (y1 + y2) / 2, text=t, fill="black")
+                self.cell_colors[(x, y)] = c
+
+    def _draw_matrix_borders(self):
+        matrix_width = self.cols * self.cell_width
+        matrix_height = self.rows * self.cell_height
+        self.canvas.create_rectangle(0, 0, matrix_width, matrix_height, outline="black", width=2)
+
+        for x in range(self.rows):
+            for y in range(self.cols):
+                color = "white"
+                text = ""
+                x1 = y * self.cell_width
+                y1 = x * self.cell_height
+                x2 = x1 + self.cell_width
+                y2 = y1 + self.cell_height
+                self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="black")
+                self.canvas.create_text((x1 + x2) / 2, (y1 + y2) / 2, text=text, fill="black")
+                self.cell_colors[(x, y)] = color
+
     def draw_matrix(self):
         self.canvas.delete("all")
-        self.cell_width = self.canvas.winfo_width() // self.cols
-        self.cell_height = self.canvas.winfo_height() // self.rows
+        canvas_width = self.canvas.winfo_width()
+        canvas_height = self.canvas.winfo_height()
+        cell_size = min(canvas_width // self.cols, canvas_height // self.rows)
+        self.cell_width = self.cell_height = cell_size
         self.cell_colors = {}
-        for x,y,c,t in self.last_updates:
-            x1 = y * self.cell_width
-            y1 = x * self.cell_height
-            x2 = x1 + self.cell_width
-            y2 = y1 + self.cell_height
-            self.canvas.create_rectangle(x1, y1, x2, y2, fill=c, outline="black")
-            self.canvas.create_text((x1 + x2) / 2, (y1 + y2) / 2, text=t, fill="black")
-
+        self._draw_matrix_borders()
+        self._draw_matrix_cells()
 
     def random_color(self):
         return "#{:06x}".format(random.randint(0, 0xFFFFFF))
@@ -72,32 +105,32 @@ class MatrixGUI:
         col = int(event.x // self.cell_width)
         row = int(event.y // self.cell_height)
         if 0 <= col < self.cols and 0 <= row < self.rows:
-            color = self.cell_colors[(row, col)]
+            text = ""
+            l = self.arena.get_position(row, col)
+            if l:
+                text = "\n".join(l[0].msg)
+
+            color = self.cell_colors.get((row, col), "white")
             # Create a popup message
             popup = tk.Toplevel(self.root)
             popup.wm_overrideredirect(True)
             popup.geometry(f"+{event.x_root + 10}+{event.y_root + 10}")
-            label = tk.Label(popup, text=f"Cell ({row}, {col})\nColor: {color}", background="yellow")
+            label = tk.Label(popup, text=f"Cell ({row}, {col})\nColor: {color}\n{text}", background="yellow")
             label.pack()
-            # Destroy the popup after a short delay
-            self.root.after(1000, popup.destroy)
+            popup.bind("<Motion>", lambda e: popup.destroy())
 
     def start(self):
         self.log_message("Start button clicked")
         self.running = True
-        self.update_time_series()
+        self.step()
 
     def stop(self):
         self.log_message("Stop button clicked")
         self.running = False
 
-    def pause(self):
-        self.log_message("Pause button clicked")
-
     def update_time_series(self):
-        if self.running:
-            self.time_series_plot.add_value(random.random())
-            self.root.after(1000, self.update_time_series)  # Update every second
+        self.time_series_plot.add_value(random.random())
+        # self.root.after(1000, self.update_time_series)  # Update every second
 
     def log_message(self, message):
         self.text_area.insert(tk.END, message + "\n")
@@ -109,23 +142,36 @@ class MatrixGUI:
     def exit_application(self, event=None):
         self.root.quit()
 
-    def update_display(self, updates):
-        self.clear_matrix
-        self.last_updates = updates  # Store the updates in the last_updates attribute
-        for (row, col, color, caption) in updates:
-            if 0 <= row < self.rows and 0 <= col < self.cols:
-                x1 = col * self.cell_width
-                y1 = row * self.cell_height
-                x2 = x1 + self.cell_width
-                y2 = y1 + self.cell_height
-                self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="black")
-                self.canvas.create_text((x1 + x2) / 2, (y1 + y2) / 2, text=caption, fill="black")
+    def update_display(self):
+        self.clear_matrix()  # Clear the matrix before updating
+        self.last_updates = self.arena.get_pos_obj_list()
+        self.draw_matrix()  # Draw the matrix with the new updates
 
     def clear_matrix(self):
         self.canvas.delete("all")
         self.cell_colors.clear()
 
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = MatrixGUI(root, 10, 10)
-    root.mainloop()
+    def _single_step(self):
+        self.step( force_1_step=True )
+        self.running = False  # Stop the execution after a single step
+
+    def step(self, force_1_step=False ):
+        # random.shuffle(self.last_updates)
+        if self.running or force_1_step:
+            self.log_message("step")
+            self.arena._move_objects_at_random()
+            self.update_display()
+            self.update_time_series()
+            if self.running:
+                self.root.after(1000, self.step)
+
+# if __name__ == "__main__":
+#     root = tk.Tk()
+#     app = MatrixGUI(root, 10, 10)
+
+#     def periodic_step():
+#         app.step()
+#         root.after(1000, periodic_step)  # Call step method every second
+
+#     root.after(1000, periodic_step)  # Start the periodic step
+#     root.mainloop()

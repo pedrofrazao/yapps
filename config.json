@@ -1,10 +1,10 @@
 {
   "matrix_size": {
-    "rows": 100,
-    "columns": 10
+    "rows": 20,
+    "columns": 20
   },
   "cells": {
-    "num_by_types": { "a": 1, "b": 2, "c": 3, "d": 4 }
+    "num_by_types": { "a": 10, "b": 5, "c": 3, "d": 4 }
   },
   "cell_types": {
     "a": {
