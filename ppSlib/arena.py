@@ -7,7 +7,7 @@ from pos_object import positional_object
 
 class ArenaObject:
     """Generic class to representing an object in the arena."""
-    def __init__(self, name, volume=1, object=None):
+    def __init__(self, name, volume=1, object=None, can_move=True):
         self.name = name
         self.x = None
         self.y = None
@@ -15,7 +15,7 @@ class ArenaObject:
         self.remove_on_move_out = True
         self.volume = volume
         self.object = object
-        self.can_move = True
+        self.can_move = can_move
         self.msg = []
         self.max_msg = 5
 
@@ -27,6 +27,11 @@ class ArenaObject:
     def deserialize(cls, data):
         """Deserialize a dictionary to an ArenaObject."""
         return pickle.loads(base64.b64decode(data))
+
+    @classmethod
+    def byclass(cls, data):
+        """Deserialize a dictionary to an ArenaObject."""
+        return cls(data['name'], data['volume'], None, data.get('can_move', True))
 
     def setposition(self, x, y):
         self.x = x
@@ -69,9 +74,15 @@ class Arena:
         """Deserialize a dictionary to an Arena object."""
         arena = cls(data['rows'], data['cols'], data['type'], data['max_volume_per_position'])
         # arena.num_objects = data['num_objects'] -- Will be defined on the add_to_position method phase
-        for obj_data in data['objects']:
-            obj = ArenaObject.deserialize(obj_data)
-            arena.add_to_position(obj.x,obj.y,obj)
+        if 'objects' in data:            
+            for obj_data in data['objects']:
+                obj = ArenaObject.deserialize(obj_data)
+                arena.add_to_position(obj.x,obj.y,obj)
+        elif 'class' in data:
+            for class_data in data['class']:
+                for _ in range(class_data.get('num', 1)):
+                    obj = ArenaObject.byclass(class_data)
+                    arena.add_to_random_position(obj)
         return arena
 
     # def json_serialize(self):
@@ -133,6 +144,15 @@ class Arena:
         self.num_objects += 1
         obj.setposition(x,y)
         return True
+    
+    def add_to_random_position(self, obj):
+        """Add an object to a random position in the arena."""
+        x = random.randint(0, self.rows-1)
+        y = random.randint(0, self.cols-1)
+        for i in range(0,10):
+            if self.add_to_position(x, y, obj):
+                return True
+        return False
 
     def remove_from_position(self, x, y, obj):
         """Remove an object from the list at position (x, y) and return it."""
