@@ -2,10 +2,12 @@ import tkinter as tk
 import random
 from time_series_plot import TimeSeriesPlot  # Import the TimeSeriesPlot class
 from arena import Arena, ArenaObject
+from tkinter import filedialog
+import lib.matrix_config
+import json
 
 class MatrixGUI:
-    def __init__(self, root, rows, cols):
-        self.root = root
+    def __init__(self, rows, cols):
         self.rows = rows
         self.cols = cols
         self.running = False
@@ -16,7 +18,11 @@ class MatrixGUI:
             obj = ArenaObject(f"Object{i}")
             self.arena.add_to_position(random.randint(0, rows-1), random.randint(0, cols-1), obj)
         ## TEST ONLY
+        self.root = tk.Tk()
+        root = self.root
 
+        self.create_menu()
+        
         # Create a frame for the left side (buttons, text area, and plot)
         self.left_frame = tk.Frame(root, width=int(root.winfo_screenwidth() / 3))
         self.left_frame.pack(side=tk.LEFT, fill=tk.Y)
@@ -57,6 +63,36 @@ class MatrixGUI:
         # Bind the keyboard shortcut to exit the application
         self.root.bind("<Control-q>", self.exit_application)
 
+    def from_configuration(self, configuration_file):
+        with open(configuration_file, 'r') as file:
+            config = json.load(file)
+        
+        newarena = Arena.deserialize(config)
+
+        self.rows = newarena.rows
+        self.cols = newarena.cols
+        
+        self.arena = newarena
+        self.update_display()
+
+        
+        # cell_types = config.get("cell_types", [])
+        # num_by_types = config.get("cells", {}).get("num_by_types", {})
+        
+        # for cell_type in cell_types:
+        #     num_cells = num_by_types.get(cell_type, 0)
+        #     for _ in range(num_cells):
+        #         obj = ArenaObject(cell_type)
+        #         self.arena.add_to_position(random.randint(0, self.rows-1), random.randint(0, self.cols-1), obj)
+        
+        # self.draw_matrix()
+        # config = lib.matrix_config.load_configuration(configuration_file)
+        # if config:
+        #     matrix_size = config["matrix_size"]
+        #     cell_types = config["cell_types"]
+        #     num_by_types = config["cells"]["num_by_types"]
+        #     self.rows(matrix_size["rows"])
+        #     self.cols(matrix_size["columns"])
 
     def _draw_matrix_cells(self):
         for o in self.last_updates:
@@ -164,6 +200,33 @@ class MatrixGUI:
             self.update_time_series()
             if self.running:
                 self.root.after(1000, self.step)
+
+    def run(self):
+        self.root.mainloop()
+
+    def create_menu(self):
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+
+        file_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="Load Configuration", command=self.load_configuration)
+        file_menu.add_command(label="Save Configuration", command=self.save_configuration)
+        file_menu.add_separator()
+        file_menu.add_command(label="Quit", command=self.exit_application)
+
+    def load_configuration(self):
+        file_path = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")])
+        if file_path:
+            self.from_configuration(file_path)
+
+    def save_configuration(self):
+        file_path = filedialog.asksaveasfilename(filetypes=[("JSON files", "*.json")])
+        if file_path:
+            with open(file_path, 'w') as file:
+                json.dump(self.arena.serialize(), file, indent=4)
+
+
 
 # if __name__ == "__main__":
 #     root = tk.Tk()
