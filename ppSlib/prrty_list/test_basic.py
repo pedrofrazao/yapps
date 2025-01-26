@@ -29,10 +29,12 @@ class TestPriorityList(unittest.TestCase):
         self.assertEqual(items, [('item1', 1), ('item2', 2)])
 
     def test_iter(self):
-        self.priority_list.add_item('item1', 1)
-        self.priority_list.add_item('item2', 2)
-        items = list(self.priority_list)
-        self.assertEqual(items, [('item1', 1), ('item2', 2)])
+        self.priority_list.add_item('item1', 11)
+        self.priority_list.add_item('item2', 22)
+        self.priority_list.add_item('item3', 11)
+        self.priority_list.add_item('item4', 11)
+        iter_list_result = [ item for item in self.priority_list ]
+        self.assertEqual(iter_list_result, [('item1', 11),('item3', 11),('item4', 11), ('item2', 22)])
 
 class TestShuffledPriorityList(unittest.TestCase):
     def setUp(self):
