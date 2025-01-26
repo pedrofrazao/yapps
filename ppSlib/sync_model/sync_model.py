@@ -16,7 +16,8 @@ class smRole:
         raise NotImplementedError("Subclasses must override run_update()")
     @abstractmethod
     def __lt__(self, other):
-        return self.get_priority() < other.get_priority()
+        ## sort by priority, higher priority first
+        return self.get_priority() > other.get_priority()
 
 class SyncModel:
     # def run_single_step(self, obj_list):
@@ -69,10 +70,10 @@ class Sync(SyncModel):
 
 
 class OASCycl(SyncModel):
-    def _sort_list(self, obj_list):
-        return sorted(obj_list)
+    # def _sort_list(self, obj_list):
+    #     return sorted(obj_list)
     def run_single_step(self, obj_list):
-        for obj in self._sort_list(obj_list):
+        for obj in obj_list:
             obj.run_interaction()
             obj.run_update()
 

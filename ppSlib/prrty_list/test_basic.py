@@ -34,7 +34,7 @@ class TestPriorityList(unittest.TestCase):
         self.priority_list.add_item('item3', 11)
         self.priority_list.add_item('item4', 11)
         iter_list_result = [ item for item in self.priority_list ]
-        self.assertEqual(iter_list_result, [('item1', 11),('item3', 11),('item4', 11), ('item2', 22)])
+        self.assertEqual(iter_list_result, [('item2', 22), ('item1', 11),('item3', 11),('item4', 11) ])
 
 class TestShuffledPriorityList(unittest.TestCase):
     def setUp(self):

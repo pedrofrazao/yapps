@@ -6,13 +6,17 @@ class PriorityObject:
         self.priority = priority
 
 class PriorityList:
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.priority_dict = {}
         self._current_priority = None
         self._current_index = 0
+        self._iter_return_priority = kwargs.get('iter_return_priority', True)
+
 
     def add_items(self, items, call2priority):
-        for item, priority in items:
+        if not callable(call2priority):
+            raise ValueError("call2priority must be a callable function")
+        for item in items:
             self.add_item(item, call2priority(item))
 
     def add_item(self, item, priority):
@@ -42,7 +46,7 @@ class PriorityList:
         return items
 
     def __iter__(self):
-        self._current_priority_iter = iter(sorted(self.priority_dict.keys()))
+        self._current_priority_iter = iter(sorted(self.priority_dict.keys(), reverse=True))
         self._current_index = 0
         self._current_list = None
         return self
@@ -56,7 +60,7 @@ class PriorityList:
         if self._current_index < len(self._current_list):
             item = self._current_list[self._current_index]
             self._current_index += 1
-            return item.item, item.priority
+            return (item.item, item.priority) if self._iter_return_priority else item.item
         else:
             raise StopIteration
 
