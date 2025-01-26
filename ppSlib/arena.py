@@ -2,6 +2,7 @@ import uuid
 import pickle
 import base64
 import random
+import copy
 
 from pos_object import positional_object
 
@@ -19,14 +20,46 @@ class ArenaObject:
         self.msg = []
         self.max_msg = 5
 
+    def __copy__(self):
+        return ArenaObject(self.name, self.volume, self.object, self.can_move)
+
     def serialize(self):
         """Serialize the ArenaObject to a dictionary."""
         return base64.b64encode(pickle.dumps(self)).decode('utf-8')
     
     @classmethod
+    def _deser_get_row_pos_from_data(cls,data):
+        return data.get('row', data.get('x', None))
+
+    @classmethod
+    def _deser_get_col_pos_from_data(cls,data):
+        return data.get('col', data.get('y', None))
+    
+    @classmethod
     def deserialize(cls, data):
         """Deserialize a dictionary to an ArenaObject."""
-        return pickle.loads(base64.b64decode(data))
+        result = None
+        if isinstance(data, dict):
+            result = cls(data['name'], data['volume'], None, data.get('can_move', True))
+            if( data.get('positions', False) ):
+                o = result
+                result = []
+                for x,y in data['positions']:
+                    oo = copy.copy(o)
+                    oo.setposition(x,y)
+                    result.append( oo )
+            else:
+                result.setposition( cls._deser_get_row_pos_from_data(data),
+                                    cls._deser_get_col_pos_from_data(data) )
+            return result
+        else:
+            try:
+                decoded_data = base64.b64decode(data)
+                result = pickle.loads(decoded_data)
+            except Exception:
+                """fail to decode using base64"""
+                result = None
+            return result
 
     @classmethod
     def byclass(cls, data):
@@ -77,7 +110,11 @@ class Arena:
         if 'objects' in data:            
             for obj_data in data['objects']:
                 obj = ArenaObject.deserialize(obj_data)
-                arena.add_to_position(obj.x,obj.y,obj)
+                if not isinstance(obj, list):
+                    obj = [obj]
+                for o in obj:
+                    arena.add_to_position(o.x,o.y,o)
+
         elif 'class' in data:
             for class_data in data['class']:
                 for _ in range(class_data.get('num', 1)):
@@ -251,3 +288,17 @@ class Surrounding:
                 else:
                     surrounding.extend(self.arena.get_position(pi, pj))
         return surrounding
+
+
+def main():
+    """Main function."""
+    arena = Arena(5, 5)
+    obj1 = ArenaObject("obj1", 1)
+    obj2 = ArenaObject("obj2", 1)
+    arena.add_to_position(0, 0, obj1)
+    arena.add_to_position(0, 1, obj2)
+
+    print(arena)
+
+if __name__ == "__main__":
+    main()
