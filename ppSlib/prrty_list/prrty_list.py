@@ -29,10 +29,6 @@ class PriorityList:
                 if r:
                     return r
 
-    def shuffle_within_priority(self):
-        for priority in self.priority_dict:
-            random.shuffle(self.priority_dict[priority])
-
     def get_items(self):
         items = []
         for priority in sorted(self.priority_dict.keys()):
@@ -47,6 +43,10 @@ class ShuffledPriorityList(PriorityList):
     def __init__(self):
         super().__init__()
         self._shuffled = False
+
+    def shuffle_within_priority(self):
+        for priority in self.priority_dict:
+            random.shuffle(self.priority_dict[priority])
 
     def __iter__(self):
         if not self._shuffled:
