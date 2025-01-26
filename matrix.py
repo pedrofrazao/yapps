@@ -63,9 +63,17 @@ class MatrixGUI:
         # Bind the keyboard shortcut to exit the application
         self.root.bind("<Control-q>", self.exit_application)
 
+    def show_error_popup(self, message):
+        tk.messagebox.showerror("Error", message)
+
     def from_configuration(self, configuration_file):
         with open(configuration_file, 'r') as file:
-            config = json.load(file)
+            try:
+                config = json.load(file)
+            except json.JSONDecodeError as e:
+                self.show_error_popup(f"Error loading configuration: {e}")
+                return
+
         
         newarena = Arena.deserialize(config)
 
@@ -199,7 +207,7 @@ class MatrixGUI:
             self.update_display()
             self.update_time_series()
             if self.running:
-                self.root.after(1000, self.step)
+                self.root.after(1, self.step)
 
     def run(self):
         self.root.mainloop()
