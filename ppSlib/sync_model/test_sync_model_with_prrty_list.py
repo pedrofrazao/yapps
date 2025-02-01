@@ -176,7 +176,7 @@ class TestOASCycl(unittest.TestCase):
         list_pl.add_items(list, lambda obj: obj.get_priority())
 
         self.sm.run_single_step(list_pl)
-        print(TestOASCycl.execution_msg_list)
+        # print(TestOASCycl.execution_msg_list)
 
         expected_order = [ 'interaction: oas_obj0','update: oas_obj0',
                            'interaction: oas_obj1','update: oas_obj1',
