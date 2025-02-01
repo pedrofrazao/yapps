@@ -7,6 +7,13 @@ class PriorityObject:
 
 class PriorityList:
     def __init__(self, **kwargs):
+        """
+        Initializes the priority list with optional keyword arguments.
+
+        Parameters:
+        kwargs (dict): Optional keyword arguments.
+            - iter_return_priority (bool): If True, the iterator will return priorities. Default is True.
+        """
         self.priority_dict = {}
         self._current_priority = None
         self._current_index = 0
