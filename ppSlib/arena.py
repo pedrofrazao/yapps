@@ -7,15 +7,20 @@ import copy
 from ppSlib.pos_object import positional_object
 
 class ArenaObject:
-    """Generic class to representing an object in the arena."""
-    def __init__(self, name, volume=1, object=None, can_move=True):
+    """
+    Generic class to representing an object in the arena.
+    with the following attributes:
+    - name: the name of the object
+    - volume: the volume of the object (default is 1)
+    - can_move: a boolean indicating whether the object can move (default is True)
+    """
+    def __init__(self, name, volume=1, can_move=True):
         self.name = name
         self.x = None
         self.y = None
         self.id = uuid.uuid4()
         self.remove_on_move_out = True
         self.volume = volume
-        self.object = object
         self.can_move = can_move
         self.msg = []
         self.max_msg = 5
@@ -175,6 +180,9 @@ class Arena:
     #     self.num_objects += len(objects)
 
     def add_to_position(self, x, y, obj):
+        return self._add_to_position(x, y, obj)
+
+    def _add_to_position(self, x, y, obj):
         """Add an object to the list at position (x, y)."""
         if self.get_total_volume(x, y) + obj.volume > self.max_volume_per_position:
             return False
@@ -193,6 +201,9 @@ class Arena:
         return False
 
     def remove_from_position(self, x, y, obj):
+        return self._remove_from_position(x, y, obj)
+    
+    def _remove_from_position(self, x, y, obj):
         """Remove an object from the list at position (x, y) and return it."""
         self.grid[x][y].remove(obj)
         self.num_objects -= 1
@@ -252,8 +263,8 @@ class Arena:
 
         # apply the move
         ox,oy = obj.x, obj.y
-        if self.add_to_position(x, y, obj) is True:
-            self.remove_from_position(ox, oy, obj)
+        if self._add_to_position(x, y, obj) is True:
+            self._remove_from_position(ox, oy, obj)
             obj.add_msg(f"{obj.name} moved ({ox,oy}) -> {x},{y})")
             return True
         else:

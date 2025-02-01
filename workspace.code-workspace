@@ -13,11 +13,12 @@
 				"request": "launch",
 				"program": "gui_test.py",
 				"args": [
-					// "--name", "ExampleWorld", "--rows", "5", "--cols", "5", "--generate", "10","--save_state", "world_state.yaml"
-					// "--load_state","ws.yaml"
 				],
 				"console": "integratedTerminal"
 			}
 		]
+	},
+	"settings": {
+		"makefile.configureOnOpen": false
 	}
 }

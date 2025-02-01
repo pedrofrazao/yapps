@@ -5,3 +5,5 @@ It includes the following modules:
 - sync_model: Provides the sync_model_factory function to create synchronization models.
 """
 
+# This file can be empty or contain package initialization code
+
