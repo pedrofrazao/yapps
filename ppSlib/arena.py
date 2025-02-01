@@ -4,7 +4,7 @@ import base64
 import random
 import copy
 
-from pos_object import positional_object
+from ppSlib.pos_object import positional_object
 
 class ArenaObject:
     """Generic class to representing an object in the arena."""
@@ -82,7 +82,7 @@ class ArenaObject:
 
 class Arena:
     """A class representing the arena."""
-    def __init__(self, rows, cols, arena_type='torus', max_volume_per_position=100):
+    def __init__(self, rows, cols, arena_type='torus', max_volume_per_position=100, **kwargs):
         self.rows = rows
         self.cols = cols
         self.type = arena_type
@@ -166,12 +166,13 @@ class Arena:
         self.num_objects -= len(objects)
         return objects
 
-    def set_position(self, x, y, objects):
-        """Set the list of objects at position (x, y)."""
-        for obj in objects:
-            obj.setposition(x,y)
-        self.grid[x][y] = objects
-        self.num_objects += len(objects)
+    # not in use?!
+    # def set_position(self, x, y, objects): 
+    #     """Set the list of objects at position (x, y)."""
+    #     for obj in objects:
+    #         obj.setposition(x,y)
+    #     self.grid[x][y] = objects
+    #     self.num_objects += len(objects)
 
     def add_to_position(self, x, y, obj):
         """Add an object to the list at position (x, y)."""
