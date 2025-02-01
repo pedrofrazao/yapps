@@ -1,5 +1,9 @@
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+
 import unittest
-import sync_model as sm
+import ppSlib.sync_model.sync_model as sm
 
 
 class gObject(sm.smRole):

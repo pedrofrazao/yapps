@@ -1,5 +1,9 @@
 import unittest
-from prrty_list import PriorityList, ShuffledPriorityList
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+
+from ppSlib.prrty_list.prrty_list import PriorityList, ShuffledPriorityList
 
 class TestPriorityList(unittest.TestCase):
     def setUp(self):

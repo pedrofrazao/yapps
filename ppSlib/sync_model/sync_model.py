@@ -1,5 +1,12 @@
 from abc import ABC, abstractmethod
 
+def sync_model_factory(model_type):
+    if model_type == "Sync":
+        return Sync()
+    elif model_type == "OASCycl":
+        return OASCycl()
+    else:
+        raise ValueError(f"Unknown model type: {model_type}")
 
 class smRole:
     @abstractmethod

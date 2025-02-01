@@ -1,9 +1,10 @@
 import sys
-sys.path.append("../")
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
 import unittest
-import sync_model as sm
-from prrty_list.prrty_list import PriorityList
+import ppSlib.sync_model.sync_model as sm
+from ppSlib.prrty_list.prrty_list import PriorityList
 
 
 class gObject(sm.smRole):
