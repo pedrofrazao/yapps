@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../'
 
 import unittest
 
-from ppSlib.arena import Arena, ArenaObject, Surrounding
+from ppSlib.arena import Arena, ArenaObject, Surrounding, SurroundingManhattan
 
 class TestArena(unittest.TestCase):
 
@@ -87,9 +87,16 @@ class TestArenaSurrounding(unittest.TestCase):
         self.obj1 = ArenaObject("Object1")
         self.obj2 = ArenaObject("Object2")
         self.obj3 = ArenaObject("Object3")
+        """
+        0 0 0 0 0
+        0 1 2 0 0
+        0 0 0 0 0
+        0 0 0 0 3
+        """
         self.arena.add_to_position(1, 1, self.obj1)
         self.arena.add_to_position(1, 2, self.obj2)
         self.arena.add_to_position(4, 4, self.obj3)
+
 
     def test_get_surrounding_objects(self):
         surrounding = Surrounding(self.arena, 2, 2, length=1)
@@ -117,6 +124,93 @@ class TestArenaSurrounding(unittest.TestCase):
         self.assertNotIn(self.obj1, surrounding.objects)
         self.assertNotIn(self.obj2, surrounding.objects)
         self.assertIn(self.obj3, surrounding.objects)
+
+    def test_get_surrounding_objects_with_torus_arena(self):
+        self.arena.type = 'torus'
+        surrounding = Surrounding(self.arena, 4, 0, length=2)
+        self.assertIn(self.obj1, surrounding.objects)
+        self.assertIn(self.obj2, surrounding.objects)
+        self.assertIn(self.obj3, surrounding.objects)
+
+    def test_distance_manhattan(self):
+        obj4 = ArenaObject("Object4")
+        self.arena.add_to_position(2,2,obj4)
+        surrounding = SurroundingManhattan( self.arena, 2, 2, length=1)
+        self.assertNotIn(self.obj1, surrounding.objects)
+        self.assertIn(self.obj2, surrounding.objects)
+        self.assertNotIn(self.obj3, surrounding.objects)
+
+        self.assertEqual(2,surrounding.direction_xy(1,2))
+        self.assertIn( (obj4,0,5), surrounding.objects_meta )
+        self.assertIn( (self.obj2,1,2), surrounding.objects_meta )
+
+class TestArenaSurrounfingDist(unittest.TestCase):
+    def setUp(self):
+        self.arena = Arena(5, 5, arena_type='torus')
+        self.o1 = ArenaObject("o1")
+        self.o2 = ArenaObject("o2")
+        self.o3 = ArenaObject("o3")
+        self.o4 = ArenaObject("o4")
+        self.o5 = ArenaObject("o5")
+        self.o6 = ArenaObject("o6")
+        """
+        56 4 0 0 3
+         0 0 0 0 0
+         0 0 0 0 0
+         0 1 2 0 0
+        """
+        self.arena.add_to_position(0, 0, self.o5)
+        self.arena.add_to_position(0, 0, self.o6)
+        self.arena.add_to_position(0, 1, self.o4)
+        self.arena.add_to_position(0, 4, self.o3)
+        self.arena.add_to_position(4, 1, self.o1)
+        self.arena.add_to_position(4, 2, self.o2)
+
+    def test_distance_manhattan(self):
+        surrounding = SurroundingManhattan( self.arena, 0, 1, length=1)
+
+        distances = {}
+        for obj, distance, direction in surrounding.objects_meta:
+            distances[obj.name] = (direction, distance)
+        
+        self.assertEqual(distances[self.o5.name], (4, 1))
+        self.assertEqual(distances[self.o6.name], (4, 1))
+        self.assertEqual(distances[self.o4.name], (5, 0))
+        self.assertEqual(distances[self.o1.name], (2, 1))
+        self.assertEqual(len(distances), 4)
+
+    def test_distance_manhattan2(self):
+        surrounding = SurroundingManhattan( self.arena, 0, 0, length=1)
+
+        distances = {}
+        for obj, distance, direction in surrounding.objects_meta:
+            distances[obj.name] = (direction, distance)
+        
+        self.assertEqual(distances[self.o5.name], (5, 0))
+        self.assertEqual(distances[self.o6.name], (5, 0))
+        self.assertEqual(distances[self.o4.name], (6, 1))
+        self.assertEqual(distances[self.o3.name], (4, 1))
+        self.assertEqual(len(distances), 4)
+
+    def test_distance_manhattan3(self):
+        """
+        56 4 0 0 3
+         0 0 0 0 0
+         0 0 0 0 0
+         0 1 2 0 0
+        """
+        surrounding = SurroundingManhattan( self.arena, 0, 0, length=2)
+
+        distances = {}
+        for obj, distance, direction in surrounding.objects_meta:
+            distances[obj.name] = (direction, distance)
+        
+        self.assertEqual(distances[self.o5.name], (5, 0))
+        self.assertEqual(distances[self.o6.name], (5, 0))
+        self.assertEqual(distances[self.o4.name], (6, 1))
+        self.assertEqual(distances[self.o3.name], (4, 1))
+        self.assertEqual(distances[self.o1.name], (3, 2))
+        self.assertEqual(len(distances), 5)
 
 
 if __name__ == '__main__':

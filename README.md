@@ -1,5 +1,16 @@
 # ppS #
 
+# GTD section #
+
+## correct test execution ##
+
+- [ ] test case with `be_test.py`
+
+python ppSlib/run_all_tests.py
+
+ 
+
+
 ## packages ##
 
 ### Arena ###

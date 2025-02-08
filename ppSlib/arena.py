@@ -13,8 +13,9 @@ class ArenaObject:
     - name: the name of the object
     - volume: the volume of the object (default is 1)
     - can_move: a boolean indicating whether the object can move (default is True)
+    - arena: the arena in which the object is located
     """
-    def __init__(self, name, volume=1, can_move=True):
+    def __init__(self, name, volume=1, can_move=True, arena=None):
         self.name = name
         self.x = None
         self.y = None
@@ -24,6 +25,7 @@ class ArenaObject:
         self.can_move = can_move
         self.msg = []
         self.max_msg = 5
+        self.arena = arena
 
     def __copy__(self):
         return ArenaObject(self.name, self.volume, self.object, self.can_move)
@@ -270,10 +272,13 @@ class Arena:
         else:
             return False
 
+    def get_pos_surrounding(self, x, y, direction=0, length=1):
+        """Get the surrounding objects of the current position."""
+        return Surrounding(self, x, y, direction, length)
 
     def __str__(self):
         """Create a string representation of the arena with the number of objects at each position."""
-        arena_str = ""
+        arena_str = f"#{self.num_objects}\n"
         for row in self.grid:
             row_str = " ".join(str(len(cell)) for cell in row)
             arena_str += row_str + "\n"
@@ -287,19 +292,92 @@ class Surrounding:
         self.y = y
         self.direction = direction
         self.length = length
+        self.objects_meta = []
         self.objects = self.get_surrounding()
 
     def get_surrounding(self):
         """Get the surrounding objects of the current position."""
         surrounding = []
-        for i in range( self.x - self.length, self.x + self.length +1 ):
-            for j in range( self.y - self.length, self.y + self.length +1 ):
-                pi,pj = self.arena.convert_position(i, j)
-                if pi is None or pj is None:
+        meta = []
+        for x in range( self.x - self.length, self.x + self.length +1 ):
+            for y in range( self.y - self.length, self.y + self.length +1 ):
+
+                px,py = self.arena.convert_position(x, y)
+                if px is None or py is None:
+                    # outbound position
                     continue
-                else:
-                    surrounding.extend(self.arena.get_position(pi, pj))
+
+                objs = self.arena.get_position(px, py)
+                for o in objs:
+                    distance = self.distance_xy(x,y)
+                    direction = self.direction_xy(x,y)
+                    if( distance <= self.length ):
+                        surrounding.append(o)
+                        meta.append( (o, distance, direction) )
+
+        self.objects_meta = meta
         return surrounding
+
+    # need to be redefined to support torus shape
+    # def distance_o(self, obj):
+    #     return self.distance_xy( obj.x,obj.y)
+    
+    @classmethod
+    def _distance_xykz(cls,x,y, k,z):
+        # Chebyshev distance
+        return max(abs(x - k), abs(y - z))
+
+    def distance_xy(self, x,y):
+        return Surrounding._distance_xykz(self.x, self.y, x,y)
+
+    def direction_xy(self, x,y):
+        return 0
+
+    def __str__(self):
+        """Create a string representation of the surrounding objects."""
+        return str(self.objects_meta)
+
+class SurroundingManhattan(Surrounding):
+    """A class representing the surrounding of an object with a Manhattan distance."""  
+    def distance_xy( self, x,y):
+        return abs(self.x - x) + abs(self.y - y)
+    
+    def direction_xy(self, x, y, distance=None):
+        """
+        direction_xy
+        return: 123
+                456
+                789
+        """
+        diff_y = self.y - y
+        diff_x = self.x - x
+        
+        if diff_x == 0:
+            if diff_y == 0:
+                return 5
+            else:
+                return 4 if diff_y > 0 else 6
+        elif diff_x > 0:
+            if diff_y == 0:
+                return 2
+            else:
+                return 1 if diff_y > 0 else 3
+        elif diff_x < 0:
+            if diff_y == 0:
+                return 8
+            else:
+                return 7 if diff_y > 0 else 9
+        raise ValueError(f"fail to calculate distance_xy: {diff_x},{diff_y}")
+
+class SurroundingEuclidean(Surrounding):
+    """A class representing the surrounding of an object with a Euclidean distance."""
+    def distance_xy( self, x,y):
+        return ((self.x - x)**2 + (self.y - y)**2)**0.5
+    
+class SurroundingChebyshev(Surrounding):
+    """A class representing the surrounding of an object with a Chebyshev distance."""
+    def distance_xy( self, x,y):
+        return max(abs(self.x - x), abs(self.y - y))
 
 
 def main():

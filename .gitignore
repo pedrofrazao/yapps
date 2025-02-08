@@ -1,6 +1,9 @@
+*~
 lib/python3.10/
 __pycache__/
 .vscode/
 lib64
 share
 *.yaml
+bin
+diagrams/jar
