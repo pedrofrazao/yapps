@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../'
 
 import unittest
 
-from ppSlib.arena import Arena, ArenaObject, Surrounding, SurroundingManhattan
+from ppSlib.arena import Arena, ArenaObject, Surrounding, SurroundingManhattan, SurroundingChebyshev
 
 class TestArena(unittest.TestCase):
 
@@ -213,6 +213,66 @@ class TestArenaSurrounfingDist(unittest.TestCase):
         self.assertEqual(dis, 2)
         self.assertIn(dir, [2,6])
         self.assertEqual(len(distances), 5)
+
+
+
+class TestArenaSurrounfingDist2(unittest.TestCase):
+    def setUp(self):
+        self.arena = Arena(5, 5, arena_type='torus')
+        self.o1 = ArenaObject("o1")
+        self.o2 = ArenaObject("o2")
+        self.o3 = ArenaObject("o3")
+        self.o4 = ArenaObject("o4")
+        self.o5 = ArenaObject("o5")
+        self.o6 = ArenaObject("o6")
+        """
+        56 4 0 0 3
+         0 0 0 0 0
+         0 0 0 0 0
+         0 1 2 0 0
+        """
+        self.arena.add_to_position(0, 0, self.o5)
+        self.arena.add_to_position(0, 0, self.o6)
+        self.arena.add_to_position(0, 1, self.o4)
+        self.arena.add_to_position(0, 4, self.o3)
+        self.arena.add_to_position(4, 1, self.o1)
+        self.arena.add_to_position(4, 2, self.o2)    
+
+    def test_distance_chebyshev(self):
+        surrounding = SurroundingChebyshev( self.arena, 0, 1, length=1)
+
+        distances = {}
+        for obj, distance, direction in surrounding.objects_meta:
+            distances[obj.name] = (direction, distance)
+        
+        self.assertEqual(distances[self.o5.name], (4, 1))
+        self.assertEqual(distances[self.o6.name], (4, 1))
+        self.assertEqual(distances[self.o4.name], (5, 0))
+        self.assertEqual(distances[self.o1.name], (2, 1))
+        self.assertEqual(distances[self.o2.name], (3, 1))
+        self.assertEqual(len(distances), 5)
+
+    def test_distance_chebyshev2(self):
+        """
+        56 4 0 0 3
+         0 0 0 0 0
+         0 0 0 0 0
+         0 1 2 0 0
+        """
+        surrounding = SurroundingChebyshev( self.arena, 0, 0, length=2)
+
+        distances = {}
+        for obj, distance, direction in surrounding.objects_meta:
+            distances[obj.name] = (direction, distance)
+        
+        self.assertEqual(distances[self.o5.name], (5, 0))
+        self.assertEqual(distances[self.o6.name], (5, 0))
+        self.assertEqual(distances[self.o4.name], (6, 1))
+        self.assertEqual(distances[self.o3.name], (4, 1))
+        self.assertEqual(distances[self.o1.name], (3, 1))
+        self.assertEqual(distances[self.o2.name], (3, 2))
+
+        self.assertEqual(len(distances), 6)
 
 
 if __name__ == '__main__':
