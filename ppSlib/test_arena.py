@@ -209,7 +209,9 @@ class TestArenaSurrounfingDist(unittest.TestCase):
         self.assertEqual(distances[self.o6.name], (5, 0))
         self.assertEqual(distances[self.o4.name], (6, 1))
         self.assertEqual(distances[self.o3.name], (4, 1))
-        self.assertEqual(distances[self.o1.name], (3, 2))
+        dir,dis = distances[self.o1.name]
+        self.assertEqual(dis, 2)
+        self.assertIn(dir, [2,6])
         self.assertEqual(len(distances), 5)
 
 

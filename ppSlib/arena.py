@@ -345,6 +345,43 @@ class SurroundingManhattan(Surrounding):
     def direction_xy(self, x, y, distance=None):
         """
         direction_xy
+        return:  2 
+                456
+                 8
+        """
+        diff_y = self.y - y
+        diff_x = self.x - x
+        
+        if diff_x == 0:
+            if diff_y == 0:
+                return 5
+            else:
+                return 4 if diff_y > 0 else 6
+        elif diff_x > 0:
+            if diff_y == 0:
+                return 2
+            else:
+                return random.choice((2,4)) if diff_y > 0 else random.choice((2,6))
+        elif diff_x < 0:
+            if diff_y == 0:
+                return 8
+            else:
+                return random.choice((4,8)) if diff_y > 0 else random.choice((6,8))
+        raise ValueError(f"fail to calculate distance_xy: {diff_x},{diff_y}")
+
+class SurroundingEuclidean(Surrounding):
+    """A class representing the surrounding of an object with a Euclidean distance."""
+    def distance_xy( self, x,y):
+        return ((self.x - x)**2 + (self.y - y)**2)**0.5
+    
+class SurroundingChebyshev(Surrounding):
+    """A class representing the surrounding of an object with a Chebyshev distance."""
+    def distance_xy( self, x,y):
+        return max(abs(self.x - x), abs(self.y - y))
+
+    def direction_xy(self, x, y, distance=None):
+        """
+        direction_xy
         return: 123
                 456
                 789
@@ -368,16 +405,6 @@ class SurroundingManhattan(Surrounding):
             else:
                 return 7 if diff_y > 0 else 9
         raise ValueError(f"fail to calculate distance_xy: {diff_x},{diff_y}")
-
-class SurroundingEuclidean(Surrounding):
-    """A class representing the surrounding of an object with a Euclidean distance."""
-    def distance_xy( self, x,y):
-        return ((self.x - x)**2 + (self.y - y)**2)**0.5
-    
-class SurroundingChebyshev(Surrounding):
-    """A class representing the surrounding of an object with a Chebyshev distance."""
-    def distance_xy( self, x,y):
-        return max(abs(self.x - x), abs(self.y - y))
 
 
 def main():
