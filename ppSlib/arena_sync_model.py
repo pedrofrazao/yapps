@@ -40,8 +40,8 @@ class asmObject(ArenaObject,smRole):
     - get_priority()
     - run_interaction() / run_update()
     """
-    def __init__(self, name, state, priority=0, log=None):
-        super().__init__(name, volume=1)
+    def __init__(self, name, state, priority=0, log=None, **kwargs):
+        super().__init__(name, **kwargs)
         self.name = name
         self.state = state
         self.priority = priority

@@ -26,6 +26,7 @@ class ArenaObject:
         self.msg = []
         self.max_msg = 5
         self.arena = arena
+        self.nickname = self.name[0] + self.name[-1]
 
     def __copy__(self):
         return ArenaObject(self.name, self.volume, self.object, self.can_move)
@@ -86,6 +87,15 @@ class ArenaObject:
     def add_msg(self, msg):
         self.msg.append(msg)
         self.msg = self.msg[-self.max_msg:]
+
+    def info(self):
+        if( self.can_move is False ):
+            return ""
+        else:
+            return f"""
+{self.name} @ ({self.x}, {self.y})
+""" + "\n".join(self.msg)
+
 
 class Arena:
     """A class representing the arena."""
@@ -280,9 +290,21 @@ class Arena:
         """Create a string representation of the arena with the number of objects at each position."""
         arena_str = f"#{self.num_objects}\n"
         for row in self.grid:
-            row_str = " ".join(str(len(cell)) for cell in row)
+            row_str = ""
+            for cell in row:
+                c = len(cell)
+                if c == 0:
+                    c = "__"
+                else:
+                    c = str(cell[0])
+                # c = "_" if c == 0 else str(c)
+                row_str = f"{row_str} {c}"
             arena_str += row_str + "\n"
         return arena_str
+    
+    def objects_info(self):
+        msg = [obj.info() for obj in self.get_objects()]
+        return "\n".join(msg)
     
 class Surrounding:
     """A class representing the surrounding of an object in the arena."""
