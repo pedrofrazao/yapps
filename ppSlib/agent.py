@@ -213,7 +213,7 @@ class Agent(asmObject):
 
     def die(self):
         if(self.log):
-            self.log( f"die: {self.nickname}" )
+            self.log( "died" )
         self.arena.remove_from_position(self.x, self.y, self)
 
     def _select_action(self):
@@ -227,6 +227,9 @@ class Agent(asmObject):
 
     def __str__(self):
         return f"{self.nickname}"
+    
+    def info(self):
+        return f"E: {self.energy()} - {self.msg[-1:]}"
 
 class NonlivingAgent(Agent):
     def __init__(self, **kwargs):
@@ -349,12 +352,12 @@ class Predator(LivingAgent):
             ## eat
             o = target[0]
             o.die()
-            self.add_msg( f"eat: {o.name}" )
+            self.add_msg( f"eat: {o.nickname}" )
             s.energy += 10
-
+        else:
+            self.add_msg( f"move: {s.direction}" )
         ## move
-        self.arena.move_object_position(self, target[2], 1)
-        self.add_msg( f"move: {target[2]}" )
+        self.arena.move_object_position(self, s.direction, 1)
         self.set_obj_state(s)
 
 class Carnivore(Predator):
@@ -374,3 +377,4 @@ class Trap(NonlivingAgent):
             if( obj.id != self.id ):
                 obj.die()
                 obj.add_msg( f"{obj.name} trapped")
+

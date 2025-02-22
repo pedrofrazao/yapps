@@ -49,7 +49,7 @@ class asmObject(ArenaObject,smRole):
         super().__init__(name, **kwargs)
         self.state = state
         self.priority = priority
-        self.log = log
+        self.log = log if log is not None else self.add_msg
         self._next_state = None
 
     def get_obj_state(self):
@@ -67,12 +67,13 @@ class asmObject(ArenaObject,smRole):
         return self.priority
 
     def run_interaction(self, context=None):
-        if(self.log):
-            self.log( f"interaction: {self.name}" )
+        pass
+    #     if(self.log):
+    #         self.log( f"interaction: {self.name}" )
 
     def run_update(self, context=None):
-        if(self.log):
-            self.log( f"update: {self.name}" )
+        # if(self.log):
+        #     self.log( f"update: {self.name}" )
         if(self._next_state is not None):
             self.state = self._next_state
             self._next_state = None

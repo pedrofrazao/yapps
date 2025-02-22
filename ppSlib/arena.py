@@ -297,7 +297,7 @@ class Arena:
         ox,oy = obj.x, obj.y
         if self._add_to_position(x, y, obj) is True:
             self._remove_from_position(ox, oy, obj)
-            obj.add_msg(f"{obj.name} moved ({ox,oy}) -> {x},{y})")
+            # obj.add_msg(f"moved ({ox,oy}) -> {x},{y})")
             return True
         else:
             return False
