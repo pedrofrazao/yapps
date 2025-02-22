@@ -239,6 +239,8 @@ class NonlivingAgent(Agent):
         pass
 
 class LivingAgent(Agent):
+    ## accept a direction selector function
+    ## - LivingAgent( select_direction=lambda surrounding: randint(1,9) if randint(1,10) > 7 else self.direction() )
     def __init__(self, **kwargs):
         kwargs['state_args'] = AgentState.add_to_state_args( { 'epoch_penalty': 1 }, **kwargs )
         if 'select_direction' in kwargs:
@@ -359,3 +361,16 @@ class Carnivore(Predator):
     pass
     # def __init__(self, **kwargs):
     #     super().__init__( **kwargs )
+
+class Trap(NonlivingAgent):
+    def __init__(self, **kwargs):
+        super().__init__( can_move=False, volume=1, priority=10, **kwargs )
+
+    def run_interaction(self, context=None):
+        s = self.get_obj_state()
+        c = self.arena.get_pos_surrounding(self.x, self.y, length=0)
+    
+        for obj,dr,ds in c:
+            if( obj.id != self.id ):
+                obj.die()
+                obj.add_msg( f"{obj.name} trapped")

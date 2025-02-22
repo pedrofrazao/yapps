@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../'
 
 import unittest
 import unittest.mock
-from ppSlib.agent import Agent as Agent, Block, Glide, Prey, Carnivore
+from ppSlib.agent import Agent as Agent, Block, Glide, Prey, Carnivore, Trap
 from ppSlib.arena_sync_model import ArenaSyncModel
 
 class TestAgent(unittest.TestCase):
@@ -56,6 +56,9 @@ class TestBlock(unittest.TestCase):
         self.assertEqual(g1.energy(), 6)
         self.assertEqual(g2.energy(), 6)
 
+class TestPrey(unittest.TestCase):
+    def setUp(self):
+        self.arena = ArenaSyncModel(5, 5, sync_model='Sync')
 
     def test_prey(self):
         p1 = Prey( arena = self.arena, state_args={'energy': 10} )
@@ -76,6 +79,10 @@ class TestBlock(unittest.TestCase):
         self.assertIn(g1, self.arena.get_position(0,1))
         self.assertEqual(p1.energy(),10)
         self.assertEqual(g1.energy(),9)
+
+class TestPredator(unittest.TestCase):
+    def setUp(self):
+        self.arena = ArenaSyncModel(5, 5, sync_model='Sync')
 
     def test_predator(self):
         p1 = Prey( arena = self.arena, state_args={'energy': 10}, select_direction=lambda x: 6 )
@@ -133,6 +140,30 @@ class TestBlock(unittest.TestCase):
         self.assertIn(c1, self.arena.get_position(0,0))
 
         self.assertEqual(c1.energy(), 18)
+
+class TestTrap(unittest.TestCase):
+    def setUp(self):
+        self.arena = ArenaSyncModel(3, 3, sync_model='Sync')
+        self.t = Trap( arena = self.arena )
+        self.arena.add_to_position(1, 0, self.t)
+        self.p = Prey( arena = self.arena, state_args={'energy': 10}, select_direction=lambda x: 4 )
+        self.arena.add_to_position(1, 2, self.p)
+
+    def test_trap(self):
+        self.assertIn(self.t, self.arena.get_position(1, 0))
+        self.assertIn(self.p, self.arena.get_position(1, 2))
+
+        self.arena.run_step()
+        self.assertIn(self.t, self.arena.get_position(1, 0))
+        self.assertIn(self.p, self.arena.get_position(1, 1))
+
+        self.arena.run_step()
+        self.assertIn(self.t, self.arena.get_position(1, 0))
+        self.assertIn(self.p, self.arena.get_position(1, 0))
+
+        self.arena.run_step()
+        self.assertIn(self.t, self.arena.get_position(1, 0))
+        self.assertNotIn(self.p, self.arena.get_position(1, 0))
 
     # def test_block_initialization(self):
     #     agent = 
