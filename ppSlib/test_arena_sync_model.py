@@ -64,6 +64,7 @@ class TestArenaSyncModelUpdate(unittest.TestCase):
         o2.run_update()
         self.assertEqual( 2, o2.state['e'], "change on the internal state" )
         
+    
 
 if __name__ == '__main__':
     unittest.main( verbosity=4 )

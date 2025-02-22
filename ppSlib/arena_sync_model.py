@@ -18,12 +18,17 @@ class ArenaSyncModel(Arena):
         self.epoch = 0
 
     def add_to_position(self, x, y, obj):
-        super().add_to_position(x, y, obj)
-        self.sync_model.add_item(obj, obj.get_priority())
+        t = super().add_to_position(x, y, obj)
+        if(t):
+            self.sync_model.add_item(obj, obj.get_priority())
+            return t
+        else:
+            return False
 
     def remove_from_position(self, x, y, obj):
-        super().remove_from_position(x, y, obj)
-        self.sync_model.remove_item(obj, priority=obj.get_priority())
+        remove = super().remove_from_position(x, y, obj)
+        if(remove is not None):
+            self.sync_model.remove_item(obj, priority=obj.get_priority())
 
     def run_step(self):
         self.sync_model.run_single_step()
@@ -46,12 +51,13 @@ class asmObject(ArenaObject,smRole):
         self.state = state
         self.priority = priority
         self.log = log
+        self._next_state = None
 
     def get_obj_state(self):
-        return self.state
+        return self.state.copy()
 
     def set_obj_state(self, state):
-        self.state = state
+        self._next_state = state
 
     def get_priority(self):
         return self.priority
@@ -63,6 +69,9 @@ class asmObject(ArenaObject,smRole):
     def run_update(self, context=None):
         if(self.log):
             self.log( f"update: {self.name}" )
+        if(self._next_state is not None):
+            self.state = self._next_state
+            self._next_state = None
 
     def __str__(self):
         return self.name + " " + str(self.state)
