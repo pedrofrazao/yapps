@@ -15,8 +15,7 @@ class ArenaObject:
     - can_move: a boolean indicating whether the object can move (default is True)
     - arena: the arena in which the object is located
     """
-    def __init__(self, name, volume=1, can_move=True, arena=None):
-        self.name = name
+    def __init__(self, name=None, volume=1, can_move=True, arena=None, max_msg=5):
         self.x = None
         self.y = None
         self.id = uuid.uuid4()
@@ -24,8 +23,9 @@ class ArenaObject:
         self.volume = volume
         self.can_move = can_move
         self.msg = []
-        self.max_msg = 5
+        self.max_msg = max_msg
         self.arena = arena
+        self.name = name if name is not None else self.__class__.__name__ +'-'+ str(self.id)
         self.nickname = self.name[0] + self.name[-1]
 
     def __copy__(self):
@@ -82,19 +82,20 @@ class ArenaObject:
         return f"ArenaObject(name={self.name})"
     
     def __str__(self):
-        return ','.join( self.name, self.x, self.y )
+        return ','.join( [ self.name, self.x, self.y, self.volume, self.can_move ] )
+
     
     def add_msg(self, msg):
         self.msg.append(msg)
         self.msg = self.msg[-self.max_msg:]
 
-    def info(self):
+    def info(self, end="\n"):
         if( self.can_move is False ):
             return ""
         else:
             return f"""
 {self.name} @ ({self.x}, {self.y})
-""" + "\n".join(self.msg)
+""" + end.join(self.msg)
 
 
 class Arena:
@@ -217,9 +218,15 @@ class Arena:
     
     def _remove_from_position(self, x, y, obj):
         """Remove an object from the list at position (x, y) and return it."""
-        self.grid[x][y].remove(obj)
-        self.num_objects -= 1
-        return obj
+        try:
+            self.grid[x][y].remove(obj)
+        except ValueError:
+            obj=None  # or handle the error as needed
+        if obj is None:
+            return None
+        else:
+            self.num_objects -= 1
+            return obj
 
     def convert_position(self, x, y):
         if self.type == 'torus':
@@ -302,9 +309,9 @@ class Arena:
             arena_str += row_str + "\n"
         return arena_str
     
-    def objects_info(self):
+    def objects_info(self, list=False):
         msg = [obj.info() for obj in self.get_objects()]
-        return "\n".join(msg)
+        return msg if list else "\n".join(msg)
     
 class Surrounding:
     """A class representing the surrounding of an object in the arena."""
@@ -315,9 +322,9 @@ class Surrounding:
         self.direction = direction
         self.length = length
         self.objects_meta = []
-        self.objects = self.get_surrounding()
+        self.objects = self._get_surrounding() # list of objects
 
-    def get_surrounding(self):
+    def _get_surrounding(self):
         """Get the surrounding objects of the current position."""
         surrounding = []
         meta = []
@@ -340,6 +347,27 @@ class Surrounding:
         self.objects_meta = meta
         return surrounding
 
+    def get_direction_to(self, obj):
+        """Get the direction of an object in the surrounding."""
+        for o, distance, direction in self.objects_meta:
+            if o == obj:
+                return direction
+        return None
+
+    def __iter__(self):
+        """Iterate over all objects in the surrounding."""
+        self._index = 0
+        return self
+
+    def __next__(self):
+        """Return the next object in the surrounding."""
+        if self._index < len(self.objects_meta):
+            o, dis, dir = self.objects_meta[self._index]
+            self._index += 1
+            return o, dis, dir
+        else:
+            raise StopIteration
+    
     # need to be redefined to support torus shape
     # def distance_o(self, obj):
     #     return self.distance_xy( obj.x,obj.y)

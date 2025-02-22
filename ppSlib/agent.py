@@ -164,7 +164,15 @@ class AgentState:
 
     def __str__(self):
         return f"{self.energy}"
-
+    
+    @staticmethod
+    def add_to_state_args( s_args, **kwargs ):
+        ## add s_args dict values to a state_args present on kwargs
+        state = kwargs.get('state_args', {})
+        for k,v in s_args.items():
+            state[k] = v
+        return state
+    
 ##
 ## Agent
 ##
@@ -192,7 +200,6 @@ class Agent(asmObject):
     #     pass
 
     def run_update(self, context=None):
-        super().run_update()
         s = self.get_next_obj_state()
         if not isinstance(s, AgentState):
             return
@@ -201,17 +208,22 @@ class Agent(asmObject):
         self.set_obj_state(s)
         if(s.energy < 1):
             self.die()
+        ## commit the changes on the state
+        super().run_update()
 
     def die(self):
         if(self.log):
-            self.log( f"die: {self.name}" )
+            self.log( f"die: {self.nickname}" )
         self.arena.remove_from_position(self.x, self.y, self)
 
     def _select_action(self):
         return self.logic.select_action()
 
+    def energy(self):
+        return self.state.energy
+
     def __str__(self):
-        return f"{self.name}"
+        return f"{self.nickname}"
 
 
 class NonlivingAgent(Agent):
@@ -254,7 +266,7 @@ class Trap(NonlivingAgent):
 
 class Prey(Agent):
     def __init__(self, **kwargs):
-        kwargs['state_args'] = { 'epoch_penalty': 0 }
+        kwargs['state_args'] = AgentState.add_to_state_args( { 'epoch_penalty': 0 }, **kwargs )
         kwargs['priority'] = kwargs.get('priority', 10)
         super().__init__( volume=33, **kwargs )
 
@@ -276,11 +288,12 @@ class Prey(Agent):
 class Glide(Agent):
     def __init__(self, dir=8, **kwargs):
         self.dir = dir
-        kwargs['state_args'] = { 'epoch_penalty': 0 }
+        kwargs['state_args'] = AgentState.add_to_state_args( { 'epoch_penalty': 1 }, **kwargs )
         kwargs['priority'] = kwargs.get('priority', 10)
         super().__init__( volume=33, **kwargs )
     
     def run_interaction(self):
         super().run_interaction()
         self.arena.move_object_position(self, self.dir, 1)
+
 

@@ -47,7 +47,6 @@ class asmObject(ArenaObject,smRole):
     """
     def __init__(self, name, state, priority=0, log=None, **kwargs):
         super().__init__(name, **kwargs)
-        self.name = name
         self.state = state
         self.priority = priority
         self.log = log
@@ -55,6 +54,11 @@ class asmObject(ArenaObject,smRole):
 
     def get_obj_state(self):
         return self.state.copy()
+    
+    def get_next_obj_state(self):
+        if( self._next_state is None ):
+            self._next_state = self.get_obj_state()
+        return self._next_state
 
     def set_obj_state(self, state):
         self._next_state = state

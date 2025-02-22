@@ -27,20 +27,24 @@ class TestBlock(unittest.TestCase):
         self.arena.add_to_position(3, 4, self.b5)
 
     def test_block(self):
-        g1 = Glide( dir=8, arena = self.arena )
-        g2 = Glide( dir=1, arena = self.arena )
+        g1 = Glide( dir=8, arena = self.arena, state_args={'energy': 10} )
+        g2 = Glide( dir=1, arena = self.arena, state_args={'energy': 10} )
         self.arena.add_to_position(0, 2, g1)
         self.arena.add_to_position(4, 4, g2)
         self.assertIn(g1, self.arena.get_position(0, 2))
         self.assertIn(g2, self.arena.get_position(4, 4))
-        
+        self.assertEqual(g1.energy(), 10)
+        self.assertEqual(g2.energy(), 10)
+
         self.arena.run_step()
         self.assertIn(g1, self.arena.get_position(1, 2))
         self.assertIn(g2, self.arena.get_position(4, 4))
-        
+        self.assertEqual(g1.energy(), 9)
+
         self.arena.run_step()
         self.assertIn(g1, self.arena.get_position(2, 2))
         self.assertIn(g2, self.arena.get_position(4, 4))
+        self.assertEqual(g2.energy(), 8)
 
         self.arena.run_step()
         self.assertIn(g1, self.arena.get_position(2, 2))
@@ -49,6 +53,8 @@ class TestBlock(unittest.TestCase):
         self.arena.run_step()
         self.assertIn(g1, self.arena.get_position(2, 2))
         self.assertIn(g2, self.arena.get_position(4, 4))
+        self.assertEqual(g1.energy(), 6)
+        self.assertEqual(g2.energy(), 6)
 
     # def test_block_initialization(self):
     #     agent = 

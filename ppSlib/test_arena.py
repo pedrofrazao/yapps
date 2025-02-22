@@ -274,6 +274,10 @@ class TestArenaSurrounfingDist2(unittest.TestCase):
 
         self.assertEqual(len(distances), 6)
 
+        surrounding = SurroundingChebyshev( self.arena, 0, 0, length=0)
+        self.assertIn(self.o5, surrounding.objects)
+        self.assertIn(self.o6, surrounding.objects)
+
 
 if __name__ == '__main__':
     unittest.main()
