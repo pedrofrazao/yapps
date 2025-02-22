@@ -315,7 +315,7 @@ class Arena:
     
 class Surrounding:
     """A class representing the surrounding of an object in the arena."""
-    def __init__(self, arena, x, y, direction=0, length=1):
+    def __init__(self, arena, x, y, direction=0, length=1 ):
         self.arena = arena
         self.x = x
         self.y = y
@@ -323,6 +323,9 @@ class Surrounding:
         self.length = length
         self.objects_meta = []
         self.objects = self._get_surrounding() # list of objects
+
+    def sorted(self):
+        return sorted(self,key=lambda x: x[1])
 
     def _get_surrounding(self):
         """Get the surrounding objects of the current position."""
@@ -368,6 +371,10 @@ class Surrounding:
         else:
             raise StopIteration
     
+    def __lt__(self, other):
+        """Compare objects based on their distance."""
+        return self.distance_xy(self.x, self.y) < other.distance_xy(other.x, other.y)
+
     # need to be redefined to support torus shape
     # def distance_o(self, obj):
     #     return self.distance_xy( obj.x,obj.y)

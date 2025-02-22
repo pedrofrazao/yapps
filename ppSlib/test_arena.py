@@ -278,6 +278,49 @@ class TestArenaSurrounfingDist2(unittest.TestCase):
         self.assertIn(self.o5, surrounding.objects)
         self.assertIn(self.o6, surrounding.objects)
 
+class TestArenaSurroundingSort(unittest.TestCase):
+    def setUp(self):
+        self.arena = Arena(5, 5, arena_type='torus')
+        self.o1 = ArenaObject("o1")
+        self.o2 = ArenaObject("o2")
+        self.o3 = ArenaObject("o3")
+        self.o4 = ArenaObject("o4")
+        self.o5 = ArenaObject("o5")
+        self.o6 = ArenaObject("o6")
+        """
+         4 0 0 0 3
+         0 2 0 0 0
+         0 0 1 0 0
+         0 0 0 0 0
+        """
+        self.arena.add_to_position(2, 2, self.o1)
+        self.arena.add_to_position(1, 1, self.o2)
+        self.arena.add_to_position(0, 0, self.o4)
+        self.arena.add_to_position(0, 4, self.o3)
+
+
+    def test_distance_sort_chebyshev(self):
+        surrounding = SurroundingChebyshev( self.arena, 2, 2, length=1)
+        so = [ (o,dis,dir) for o,dis,dir in sorted(surrounding, key=lambda x: x[1]) ]
+        self.assertEqual(so[0][0], self.o1)
+        self.assertEqual(so[1][0], self.o2)
+        self.assertEqual(2, len(so))
+        
+        surrounding = SurroundingChebyshev( self.arena, 2, 2, length=2)
+        so = [ (o,dis,dir) for o,dis,dir in sorted(surrounding, key=lambda x: x[1]) ]
+        self.assertEqual(so[0][0], self.o1)
+        self.assertEqual(so[1][0], self.o2)
+        self.assertIn( (self.o4, 2, 1), so)
+        self.assertIn( (self.o3, 2, 3), so)
+        self.assertEqual(4, len(so))
+
+        so = SurroundingChebyshev( self.arena, 2, 2, length=2).sorted()
+        self.assertEqual(so[0][0], self.o1)
+        self.assertEqual(so[1][0], self.o2)
+        self.assertIn( (self.o4, 2, 1), so)
+        self.assertIn( (self.o3, 2, 3), so)
+        self.assertEqual(4, len(so))
+
 
 if __name__ == '__main__':
     unittest.main()
