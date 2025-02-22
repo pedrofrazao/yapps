@@ -1,6 +1,6 @@
 from ppSlib.arena_sync_model import ArenaSyncModel, asmObject
 from abc import abstractmethod, ABC
-import random
+from random import randint
 
 
 # ##
@@ -170,7 +170,7 @@ class AgentState:
         ## add s_args dict values to a state_args present on kwargs
         state = kwargs.get('state_args', {})
         for k,v in s_args.items():
-            state[k] = v
+            state[k] = v if k not in state else state[k]
         return state
     
 ##
@@ -221,10 +221,12 @@ class Agent(asmObject):
 
     def energy(self):
         return self.state.energy
+    
+    def direction(self):
+        return self.state.direction
 
     def __str__(self):
         return f"{self.nickname}"
-
 
 class NonlivingAgent(Agent):
     def __init__(self, **kwargs):
@@ -236,9 +238,26 @@ class NonlivingAgent(Agent):
     def die(self):
         pass
 
+class LivingAgent(Agent):
+    def __init__(self, **kwargs):
+        kwargs['state_args'] = AgentState.add_to_state_args( { 'epoch_penalty': 1 }, **kwargs )
+        if 'select_direction' in kwargs:
+            if callable(kwargs['select_direction']):
+                self.direction_selector = kwargs['select_direction']
+            else:
+                raise ValueError("select_direction must be callable")
+            del kwargs['select_direction']
+        else:
+            self.direction_selector = lambda surrounding: randint(1,9) if randint(1,10) > 7 else self.direction()
+
+        super().__init__( **kwargs )
+
+    def select_direction(self, surrounding=None):
+        return self.direction_selector(surrounding)
+
 class Block(NonlivingAgent):
     def __init__(self, **kwargs):
-        super().__init__( can_move=False, volume=100,priority=0, **kwargs )
+        super().__init__( can_move=False, volume=100,priority=10, **kwargs )
 
     def run_interaction(self, context=None):
         pass
@@ -248,7 +267,7 @@ class Block(NonlivingAgent):
 
 class Trap(NonlivingAgent):
     def __init__(self, **kwargs):
-        super().__init__( can_move=False, volume=1, priority=0, **kwargs )
+        super().__init__( can_move=False, volume=1, priority=10, **kwargs )
 
     def run_interaction(self, context=None):
         s = self.get_obj_state()
@@ -264,36 +283,79 @@ class Trap(NonlivingAgent):
         pass
 
 
-class Prey(Agent):
+class Prey(LivingAgent):
     def __init__(self, **kwargs):
         kwargs['state_args'] = AgentState.add_to_state_args( { 'epoch_penalty': 0 }, **kwargs )
-        kwargs['priority'] = kwargs.get('priority', 10)
+        kwargs['priority'] = kwargs.get('priority', 1)
         super().__init__( volume=33, **kwargs )
 
     def run_interaction(self):
         super().run_interaction()
         s = self.get_next_obj_state()
 
-        c = self.arena.get_pos_surrounding(self.x, self.y)
-        if( randint(1,10) > 7 ):
-            s.direction = randint(1,9)
-            self.set_obj_state(s)  
+        # c = self.arena.get_pos_surrounding(self.x, self.y)
+        ## change direction?
+        s.direction = self.select_direction()
 
         self.arena.move_object_position(self, s.direction, 1)
         self.set_obj_state(s)
-
-    def __str__(self):
-        return f"{self.name}"
     
-class Glide(Agent):
+class Glide(LivingAgent):
     def __init__(self, dir=8, **kwargs):
         self.dir = dir
         kwargs['state_args'] = AgentState.add_to_state_args( { 'epoch_penalty': 1 }, **kwargs )
-        kwargs['priority'] = kwargs.get('priority', 10)
+        kwargs['priority'] = kwargs.get('priority', 1)
         super().__init__( volume=33, **kwargs )
     
     def run_interaction(self):
         super().run_interaction()
         self.arena.move_object_position(self, self.dir, 1)
 
+class Predator(LivingAgent):
+    def __init__(self, see_length=2, **kwargs):
+        kwargs['state_args'] = AgentState.add_to_state_args( { 'epoch_penalty': 1 }, **kwargs )
+        kwargs['priority'] = kwargs.get('priority', 5)
+        self.see_length = see_length
+        super().__init__( volume=33, **kwargs )
 
+    def run_interaction(self):
+        super().run_interaction()
+        
+        s = self.get_next_obj_state()
+        if s.energy > 20:
+            ## i'm ok, do nothing
+            return
+        
+        srrn = self.arena.get_pos_surrounding(self.x, self.y, length=self.see_length).sorted()
+
+        target=(None,None,None)
+        for o,dis,dir in sorted(srrn):
+            if( not isinstance(o, LivingAgent) or isinstance(o, self.__class__) ):
+                ## only eat LivingAgent but I'm not a cannibal
+                continue
+            else:
+                target = (o,dis,dir)
+                break
+        
+        if( target[0] is None ):
+            ## no target, just more
+            s.direction = self.select_direction()
+        else:
+            s.direction = target[2]
+
+        if( target[0] is not None and target[1] <= 1 ):
+            ## eat
+            o = target[0]
+            o.die()
+            self.add_msg( f"eat: {o.name}" )
+            s.energy += 10
+
+        ## move
+        self.arena.move_object_position(self, target[2], 1)
+        self.add_msg( f"move: {target[2]}" )
+        self.set_obj_state(s)
+
+class Carnivore(Predator):
+    pass
+    # def __init__(self, **kwargs):
+    #     super().__init__( **kwargs )

@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../'
 
 import unittest
 import unittest.mock
-from ppSlib.agent import Agent as Agent, Block, Glide
+from ppSlib.agent import Agent as Agent, Block, Glide, Prey, Carnivore
 from ppSlib.arena_sync_model import ArenaSyncModel
 
 class TestAgent(unittest.TestCase):
@@ -56,6 +56,84 @@ class TestBlock(unittest.TestCase):
         self.assertEqual(g1.energy(), 6)
         self.assertEqual(g2.energy(), 6)
 
+
+    def test_prey(self):
+        p1 = Prey( arena = self.arena, state_args={'energy': 10} )
+        g1 = Glide( dir=6, arena = self.arena, state_args={'energy': 10} )
+        self.arena.add_to_position(0, 0, p1)
+        self.arena.add_to_position(0, 0, g1)
+
+        # test energy
+        self.assertEqual(p1.energy(), 10)
+        self.assertEqual(g1.energy(), 10)
+
+        # test movement
+        self.arena.run_step()
+        if( p1.direction() == 5 ):
+            self.assertIn(p1, self.arena.get_position(0,0))
+        else:
+            self.assertNotIn(p1, self.arena.get_position(0,0))
+        self.assertIn(g1, self.arena.get_position(0,1))
+        self.assertEqual(p1.energy(),10)
+        self.assertEqual(g1.energy(),9)
+
+    def test_predator(self):
+        p1 = Prey( arena = self.arena, state_args={'energy': 10}, select_direction=lambda x: 6 )
+        self.arena.add_to_position(0, 0, p1)
+        c1 = Carnivore( arena = self.arena, state_args={'energy': 10}, select_direction=lambda x: 5, see_length=1 )
+        self.arena.add_to_position(0, 3, c1)
+        #  P5 __ __ C5 __
+        #  __ __ __ __ __
+        #  __ __ __ __ __
+        #  B4 Ba Ba B0 Bb
+        #  __ __ __ __ __
+
+        self.arena.run_step()
+        #  __ P5 __ C5 __
+        #  __ __ __ __ __
+        #  __ __ __ __ __
+        #  B4 Ba Ba B0 Bb
+        #  __ __ __ __ __
+        self.assertIn(p1, self.arena.get_position(0,1))
+        self.assertIn(c1, self.arena.get_position(0,3))
+        self.assertEqual(c1.energy(), 9)
+
+        self.arena.run_step()
+        #  __ __ P5 C5 __
+        #  __ __ __ __ __
+        #  __ __ __ __ __
+        #  B4 Ba Ba B0 Bb
+        #  __ __ __ __ __
+        self.assertIn(p1, self.arena.get_position(0,2))
+        self.assertIn(c1, self.arena.get_position(0,3))
+        self.assertEqual(c1.energy(), 8)
+
+        self.arena.run_step()
+        #  __ __ C5 __ __
+        #  __ __ __ __ __
+        #  __ __ __ __ __
+        #  B4 Ba Ba B0 Bb
+        #  __ __ __ __ __
+        self.assertNotIn(p1, self.arena.get_position(0,2))
+        self.assertIn(c1, self.arena.get_position(0,2))
+        self.assertEqual(c1.energy(), 17)
+    
+    def test_predator_still_prey(self):
+        p1 = Prey( arena = self.arena, state_args={'energy': 10}, select_direction=lambda x: 5 )
+        self.arena.add_to_position(0, 0, p1)
+        c1 = Carnivore( arena = self.arena, state_args={'energy': 10}, select_direction=lambda x: 5, see_length=2 )
+        self.arena.add_to_position(0, 2, c1)
+
+        self.arena.run_step()
+        self.assertIn(p1, self.arena.get_position(0,0))
+        self.assertIn(c1, self.arena.get_position(0,1))
+
+        self.arena.run_step()
+        self.assertNotIn(p1, self.arena.get_position(0,0))
+        self.assertIn(c1, self.arena.get_position(0,0))
+
+        self.assertEqual(c1.energy(), 18)
+
     # def test_block_initialization(self):
     #     agent = 
     #     self.assertEqual(agent.agent_class(), 'Block')
@@ -103,4 +181,4 @@ class TestBlock(unittest.TestCase):
 #         # Add assertions based on the expected behavior of run_update
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(verbosity=2)

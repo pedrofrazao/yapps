@@ -4,7 +4,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../'
 
 import unittest
 
-from ppSlib.arena import Arena, ArenaObject, Surrounding, SurroundingManhattan, SurroundingChebyshev
+from ppSlib.arena import Arena, ArenaObject
+from ppSlib.arena_surrounding import Surrounding, SurroundingManhattan, SurroundingChebyshev
 
 class TestArena(unittest.TestCase):
 
@@ -31,6 +32,17 @@ class TestArena(unittest.TestCase):
         self.arena.remove_from_position(1, 1, self.obj1)
         self.assertNotIn(self.obj1, self.arena.get_position(1, 1))
         self.assertEqual( 0, self.arena.get_num_objects(1, 1))
+
+    def test_move_dir_5(self):
+        self.arena.add_to_position(1, 1, self.obj1)
+
+        self.arena.move_object_position(self.obj1, 5, 1)
+        self.assertIn(self.obj1, self.arena.get_position(1, 1))
+        self.assertEqual( 1, self.arena.get_num_objects(1, 1))
+
+        self.arena.move_object_position(self.obj1, 5, 0)
+        self.assertIn(self.obj1, self.arena.get_position(1, 1))
+        self.assertEqual( 1, self.arena.get_num_objects(1, 1))
 
     # def test_set_position(self):
     #     self.arena.set_position(1, 1, [self.obj1, self.obj2])
@@ -299,28 +311,46 @@ class TestArenaSurroundingSort(unittest.TestCase):
         self.arena.add_to_position(0, 4, self.o3)
 
 
-    def test_distance_sort_chebyshev(self):
+    def test_distance_sort_chebyshev_l1(self):
         surrounding = SurroundingChebyshev( self.arena, 2, 2, length=1)
         so = [ (o,dis,dir) for o,dis,dir in sorted(surrounding, key=lambda x: x[1]) ]
         self.assertEqual(so[0][0], self.o1)
         self.assertEqual(so[1][0], self.o2)
-        self.assertEqual(2, len(so))
-        
+
+        # dir
+        self.assertIn( (self.o1, 0, 5), so)
+        self.assertIn( (self.o2, 1, 1), so)
+        self.assertEqual(2, len(so), "2 objects")
+
+    def test_distance_sort_chebyshev_l2(self):        
         surrounding = SurroundingChebyshev( self.arena, 2, 2, length=2)
         so = [ (o,dis,dir) for o,dis,dir in sorted(surrounding, key=lambda x: x[1]) ]
         self.assertEqual(so[0][0], self.o1)
         self.assertEqual(so[1][0], self.o2)
         self.assertIn( (self.o4, 2, 1), so)
         self.assertIn( (self.o3, 2, 3), so)
+
+        # dir
+        self.assertIn( (self.o1, 0, 5), so)
+        self.assertIn( (self.o2, 1, 1), so)
+        self.assertIn( (self.o4, 2, 1), so)
+        self.assertIn( (self.o3, 2, 3), so)
         self.assertEqual(4, len(so))
 
+    def test_distance_sort_chebyshev_l2s(self):
         so = SurroundingChebyshev( self.arena, 2, 2, length=2).sorted()
         self.assertEqual(so[0][0], self.o1)
         self.assertEqual(so[1][0], self.o2)
+        self.assertIn( (self.o4, 2, 1), so)
+        self.assertIn( (self.o3, 2, 3), so)
+
+        # dir
+        self.assertIn( (self.o1, 0, 5), so)
+        self.assertIn( (self.o2, 1, 1), so)
         self.assertIn( (self.o4, 2, 1), so)
         self.assertIn( (self.o3, 2, 3), so)
         self.assertEqual(4, len(so))
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(verbosity=2)
