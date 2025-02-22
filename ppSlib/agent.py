@@ -1,0 +1,286 @@
+from ppSlib.arena_sync_model import ArenaSyncModel, asmObject
+from abc import abstractmethod, ABC
+import random
+
+
+# ##
+# ## Agent Logic
+# ##
+# class AgentLogic(ABC):
+#     def __init__( self, *args ):
+#         self.actions = [ *args ]
+
+#     def select_action(self, agent, surroundings=[]):
+#         """
+#         Select an action to perform
+#         return: action, {action_params}, target_agent
+#         """
+#         selected_action = random.choice( self.actions ) if len(self.actions) > 0 else None
+#         action_params = {}
+#         target_agent = None
+#         return selected_action, action_params, target_agent
+
+#     def do_action(self, agent, surroundings=[]):
+#         """
+#         select and do an action
+#         return: new_agent_state, new_target_agent_state, elapsed_time
+#         """
+#         action = self.select_action( agent, surroundings )
+#         if action is None:
+#             return agent.state, None, 0
+#         else:
+#             raise ValueError("the action needed to be defined")
+
+#         if action is not None:
+#             action.do_action(agent, target_agent)
+
+# class PreyLogic(AgentLogic):
+#     def __init__(self):
+#         super().__init__( ActionMove(), ActionEat() )
+
+# class BlockLogic(AgentLogic):
+#     def __init__(self):
+#         super().__init__()
+
+#     def select_action(self, agent, surroundings=[]):
+#         return None, {}, None
+
+# ##
+# ## available actions
+# ##
+# class Action(ABC):
+#     def __init__(self, success_probability=100, time_consumption=99, parameters={} ):
+#         self.success_probability = success_probability
+#         self.time_consumption = time_consumption
+#         self.parameters = parameters
+#         self.energy_consumption = 0
+
+#     def logic_name(self):
+#         return self.__class__.__name__
+    
+#     def _self_effect(self, agent):
+#         state = agent.state.clone()
+#         state.energy -= self.energy_consumption
+#         return state
+
+#     def _target_effect(self, target_agent):
+#         state = target_agent.state.clone()
+#         return state
+
+#     def solo_action(self, agent):
+#         new_state = self._self_effect(agent)
+#         return new_state, None, self.time_consumption
+
+#     def pared_action(self, agent, target_agent):
+#         new_t_state = self._target_effect(target_agent)
+#         new_a_state = self._self_effect(agent)
+#         return new_a_state, new_t_state, self.time_consumption
+
+# class ActionMove(Action):
+#     def __init__(self, success_probability=100, time_consumption=99, energy_consumption=2 ):
+#         parameters = { 'length': ParamLength(), 'direction': ParamDirection() }
+#         super().__init__(success_probability, time_consumption, energy_consumption, parameters)
+
+#     def do_action(self, agent):
+#         params = self.parameters
+#         length = params['length'].random_choice_values()
+#         direction = params['direction'].random_choice_values()
+#         agent.move(length, direction)
+
+# # class Params:
+# #     def __init__(self, *args):
+# #         self.params = args
+
+# #     @abstractmethod
+# #     def possible_values(self):
+# #         pass
+
+# #     @classmethod
+# #     def random_choice_values(cls):
+# #         return random.choice( cls.possible_values() )
+
+# #     def params_name(self):
+# #         return self.__class__.__name__
+
+# # class ParamLength(Params):
+# #     def __init__(self, *args):
+# #         super().__init__(*args)
+
+# #     def possible_values(self):
+# #         return [1,2]
+                
+# # class ParamDirection(Params):
+# #     def __init__(self, *args):
+# #         super().__init__(*args)
+
+# #     def possible_values(self):
+# #         return [1,2,3,4,5,6,7,8,9]
+    
+
+
+# class ActionEat(Action):
+#     def __init__(self, success_probability=100, time_consumption=99, energy_consumption=1 ):
+#         parameters = {}
+#         super().__init__(success_probability, time_consumption, energy_consumption, parameters)
+
+#     def do_action(self, agent, target_agent):
+#         agent.state.energy
+
+##
+## Agent State
+##
+class AgentState:
+    def __init__(self, owner, age=0, energy=100, direction=5, female=True, move_dir=None, move_len=None, epoch_penalty=1):
+        self.owner = owner
+        self.energy = energy
+        self.age = age
+        self.direction = direction
+        self.female = female
+        self.move_dir = move_dir
+        self.move_len = move_dir
+        self.epoch_penalty = epoch_penalty
+
+    def clone(self):
+        return AgentState(
+            owner = self.owner,
+            age=self.age,
+            energy=self.energy,
+            direction=self.direction,
+            female=self.female,
+            move_dir=self.move_dir,
+            move_len=self.move_len,
+            epoch_penalty = self.epoch_penalty
+        )
+
+    def epoch_tic(self):
+        self.energy -= self.epoch_penalty
+        self.age += 1
+
+    def change_energy_by(self, delta):
+        self.energy += delta
+
+    def copy(self):
+        return self.clone()
+
+    def __str__(self):
+        return f"{self.energy}"
+
+##
+## Agent
+##
+class Agent(asmObject):
+
+    def __init__(self, name=None, **kwargs):
+        state = None 
+        if 'state' in kwargs:
+            state = kwargs['state']
+            del kwargs['state']
+        elif 'state_args' in kwargs:
+            state = AgentState(self, **kwargs['state_args'])
+            del kwargs['state_args']
+        else:
+            state = AgentState(self)
+        super().__init__( name, state, **kwargs )
+
+    # def run_interaction(self):
+    #     ## select action
+    #     pass
+    #     ## do action
+    #     pass
+
+    # def run_update(self):
+    #     pass
+
+    def run_update(self, context=None):
+        super().run_update()
+        s = self.get_next_obj_state()
+        if not isinstance(s, AgentState):
+            return
+        
+        s.epoch_tic()
+        self.set_obj_state(s)
+        if(s.energy < 1):
+            self.die()
+
+    def die(self):
+        if(self.log):
+            self.log( f"die: {self.name}" )
+        self.arena.remove_from_position(self.x, self.y, self)
+
+    def _select_action(self):
+        return self.logic.select_action()
+
+    def __str__(self):
+        return f"{self.name}"
+
+
+class NonlivingAgent(Agent):
+    def __init__(self, **kwargs):
+        kwargs['state_args'] = { 'epoch_penalty': 0 }
+        kwargs['can_move'] = kwargs.get('can_move', False)
+        super().__init__( **kwargs )
+        
+    # this agent can't die
+    def die(self):
+        pass
+
+class Block(NonlivingAgent):
+    def __init__(self, **kwargs):
+        super().__init__( can_move=False, volume=100,priority=0, **kwargs )
+
+    def run_interaction(self, context=None):
+        pass
+
+    def run_update(self, context=None):
+        pass
+
+class Trap(NonlivingAgent):
+    def __init__(self, **kwargs):
+        super().__init__( can_move=False, volume=1, priority=0, **kwargs )
+
+    def run_interaction(self, context=None):
+        s = self.get_obj_state()
+        c = self.arena.get_pos_surrounding(self.x, self.y, length=0)
+    
+        for obj,dr,ds in c:
+            if( obj.id != self.id ):
+                obj.die()
+                self.add_msg( f"trap: {obj.name}" )
+                obj.add_msg( f"{obj.name} trapped")
+
+    def run_update(self, context=None):
+        pass
+
+
+class Prey(Agent):
+    def __init__(self, **kwargs):
+        kwargs['state_args'] = { 'epoch_penalty': 0 }
+        kwargs['priority'] = kwargs.get('priority', 10)
+        super().__init__( volume=33, **kwargs )
+
+    def run_interaction(self):
+        super().run_interaction()
+        s = self.get_next_obj_state()
+
+        c = self.arena.get_pos_surrounding(self.x, self.y)
+        if( randint(1,10) > 7 ):
+            s.direction = randint(1,9)
+            self.set_obj_state(s)  
+
+        self.arena.move_object_position(self, s.direction, 1)
+        self.set_obj_state(s)
+
+    def __str__(self):
+        return f"{self.name}"
+    
+class Glide(Agent):
+    def __init__(self, dir=8, **kwargs):
+        self.dir = dir
+        kwargs['state_args'] = { 'epoch_penalty': 0 }
+        kwargs['priority'] = kwargs.get('priority', 10)
+        super().__init__( volume=33, **kwargs )
+    
+    def run_interaction(self):
+        super().run_interaction()
+        self.arena.move_object_position(self, self.dir, 1)
+
