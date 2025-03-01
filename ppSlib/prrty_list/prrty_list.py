@@ -18,6 +18,8 @@ class PriorityList:
         self._current_priority = None
         self._current_index = 0
         self._iter_return_priority = kwargs.get('iter_return_priority', True)
+        self._iter_list = []
+        self._iter_removed = []
 
 
     def add_items(self, items, call2priority):
@@ -35,6 +37,7 @@ class PriorityList:
         if priority in self.priority_dict:
             for obj in self.priority_dict[priority]:
                 if obj.item == item:
+                    self.marked_as_removed( obj )
                     return self.priority_dict[priority].remove(obj)
 
     def remove_item(self, item, priority=None):
@@ -52,24 +55,42 @@ class PriorityList:
             items.extend((obj.item, obj.priority) for obj in self.priority_dict[priority])
         return items
 
+    def marked_as_removed(self, obj):
+        if self._iter_list:
+            self._iter_removed.append(obj.item)
+
     def __iter__(self):
-        self._current_priority_iter = iter(sorted(self.priority_dict.keys(), reverse=True))
-        self._current_index = 0
-        self._current_list = None
-        return self
+        self._iter_list = []
+        self._iter_removed = []
+        ## create a list with all the ordered items, to help on the iteration
+        for plist in sorted(self.priority_dict.keys(), reverse=True):
+            self._iter_list.extend( [ item for item in self.priority_dict[plist] ] )
+
+        return self        
 
     def __next__(self):
-        if self._current_list is None or self._current_index >= len(self._current_list):
-            self._current_priority = next(self._current_priority_iter)
-            self._current_list = self.priority_dict[self._current_priority]
-            self._current_index = 0
-
-        if self._current_index < len(self._current_list):
-            item = self._current_list[self._current_index]
-            self._current_index += 1
-            return (item.item, item.priority) if self._iter_return_priority else item.item
+        v = self._next()
+        if v is not None:
+            return (v.item, v.priority) if self._iter_return_priority else v.item
         else:
             raise StopIteration
+
+    def _next(self):
+        if( not self._iter_list ):
+            ## empty iter list
+            ## clean up
+            self._iter_list = []
+            self._iter_removed = []
+            return None
+
+        item = self._iter_list.pop(0)
+        
+        if item.item not in self._iter_removed:
+            ## check if item is in the current priority list
+            return item
+        else:
+            ## item was removed, try next
+            return self._next()
 
 class ShuffledPriorityList(PriorityList):
     def __init__(self):
