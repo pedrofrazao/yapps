@@ -186,6 +186,15 @@ class Prey(LivingAgent):
 
         self.arena.move_object_position(self, s.direction, 1)
         self.set_obj_state(s)
+
+    # override the die method to generate a new prey on a random position
+    def die(self):
+        super().die()
+        energy = randint(20,40)
+        obj = Prey( state_args={ 'energy':energy}, arena=self.arena)
+        self.arena.add_to_random_position(obj)
+        if(self.log):
+            self.log( "reborn" )
     
 class Glide(LivingAgent):
     def __init__(self, dir=8, **kwargs):

@@ -18,11 +18,7 @@ cols=16
 
 
 
-def load_from_file():
-    parser = argparse.ArgumentParser(description='Matrix CLI')
-    parser.add_argument('-f', '--file', type=str, help='File to load the arena from')
-    args = parser.parse_args()
-
+def load_from_file( args ):
     if args.file:
         with open(args.file, 'r') as file:
             try:
@@ -39,7 +35,7 @@ def load_from_file():
         return None
 
 
-def _load_demo_arena():
+def _load_demo_arena(_):
     # Initialize the arena and objects
     arena = ArenaSyncModel(rows, cols, sync_model='Sync')
     num_traps = 5
@@ -70,22 +66,33 @@ def _load_demo_arena():
 
     return arena
 
+def load_args():
+    parser = argparse.ArgumentParser(description='Matrix CLI')
+    parser.add_argument('-f', '--file', type=str, help='File to load the arena from')
+    parser.add_argument('--epochs', type=int, help='Number of epochs to run', default=100)
+    parser.add_argument('--slow', action='store_true', help='Run the simulation slowly', default=False)
+    parser.add_argument('--interactive', action='store_true', help='Run the simulation interactively', default=False)
+    # parser.add_argument('-h', '--help', action='help', help='Show this help message and exit')
+    args = parser.parse_args()
 
-def main(stdscr):
+    return args
 
-    arena = load_from_file()
+
+def main(stdscr, args):
+
+    arena = load_from_file(args)
     if arena is None:
         # load default
-        arena = _load_demo_arena()
+        arena = _load_demo_arena(args)
 
-    arena2 = _load_demo_arena()
+    # arena2 = _load_demo_arena()
 
     # Display the arena
     stdscr.addstr(0, 0, str(arena))
     stdscr.addstr(rows+2, 0, "====")
 
     # Run the loop with curses
-    loop(stdscr, arena, 4000)
+    loop(stdscr, arena, args.epochs, args)
 
     height, width = stdscr.getmaxyx()
     stdscr.addstr(height - 1, 0, "Press 'q' to exit.")
@@ -104,7 +111,7 @@ def main(stdscr):
             stdscr.refresh()
 
 
-def loop(stdscr, arena, steps=5):
+def loop(stdscr, arena, steps=5, args=None):
     num_rows, num_cols = stdscr.getmaxyx()
     lwin = curses.newpad(num_rows*10, 255 )
     c = None
@@ -134,6 +141,16 @@ def loop(stdscr, arena, steps=5):
         lwin.refresh(0,0, rows+3, 0, num_rows-1, num_cols-1 )
 
         # Wait for a short period to create a visual effect
+        if args.interactive is False:
+            if args.slow:
+                stdscr.timeout(1000)
+                c = stdscr.getch()
+                if c == -1:
+                    continue
+                elif c == ord('q'):
+                    break
+            continue
+
         if( c is not None and c == ord('q') ):
             break
         elif( c is not None and c == ord('c') ):
@@ -145,5 +162,6 @@ def loop(stdscr, arena, steps=5):
         
 
 if __name__ == "__main__":
-    curses.wrapper(main)
+    args = load_args()
+    curses.wrapper(main, args)
 
