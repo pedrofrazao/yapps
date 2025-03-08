@@ -105,8 +105,20 @@ class Agent(asmObject):
     def __str__(self):
         return f"{self.nickname}"
     
-    def info(self):
-        return f"e{self.energy()} d{self.state.direction} - {self.msg[-1:]}"
+    def info(self, class_name=False, multi_line=False):
+        if( class_name is False and multi_line is False ):
+            return f"e{self.energy()} d{self.state.direction} - {self.msg[-1:]}"
+        else:
+            msg = f"{self.nickname}"
+            if( class_name ):
+                msg += f" {self.__class__.__name__}"
+            msg += f" - e{self.energy()} d{self.state.direction}"
+            if( multi_line ):
+                msg += "\n" + "\n".join(self.msg[-3:])
+            else:
+                msg += f"\n{self.msg[-1:]}"
+            return msg
+    
 
 class NonlivingAgent(Agent):
     def __init__(self, **kwargs):

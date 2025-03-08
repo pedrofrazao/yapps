@@ -136,17 +136,17 @@ class MatrixGUI:
         col = int(event.x // self.cell_width)
         row = int(event.y // self.cell_height)
         if 0 <= col < self.cols and 0 <= row < self.rows:
-            text = ""
             l = self.arena.get_position(row, col)
-            for o in l:
-                text = f"{o.info()}\n"
+            text_lst = [ f"{o.info(class_name=True, multi_line=True)}" for o in l ]
+            text = "\n".join(text_lst)
 
             color = self.cell_colors.get((row, col), "white")
             # Create a popup message
             popup = tk.Toplevel(self.root)
             popup.wm_overrideredirect(True)
             popup.geometry(f"+{event.x_root + 10}+{event.y_root + 10}")
-            label = tk.Label(popup, text=f"Cell ({row}, {col})\n{text}", background="yellow")
+            # label = tk.Label(popup, text=f"Cell ({row}, {col})\n{text}", background="yellow")
+            label = tk.Label(popup, text=f"{text}", background="yellow")
             label.pack()
             popup.bind("<Motion>", lambda e: popup.destroy())
 
