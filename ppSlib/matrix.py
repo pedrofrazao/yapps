@@ -3,13 +3,13 @@ import random
 import time
 from time_series_plot import TimeSeriesPlot  # Import the TimeSeriesPlot class
 from arena import Arena, ArenaObject
-import ppSlib.arena_demo
+import ppSlib.ArenaDemo as arena_demo
 from tkinter import filedialog
-import lib.matrix_config
+# import ppSlib.matrix_config
 import json
 
 class MatrixGUI:
-    def __init__(self, rows, cols):
+    def __init__(self, rows=16, cols=16):
         self.rows = rows
         self.cols = cols
         self.running = False
@@ -21,6 +21,7 @@ class MatrixGUI:
             self.arena.add_to_position(random.randint(0, rows-1), random.randint(0, cols-1), obj)
         ## TEST ONLY
         self.root = tk.Tk()
+        self.root.attributes("-fullscreen", True)  # Force full-screen mode
         self.max_speed = 1  # Maximum speed for the simulation
         self.last_step_time = 0  # Last time the step method was called
         root = self.root
@@ -246,7 +247,8 @@ class MatrixGUI:
 
 
     def demo_config(self):
-        arena = ppSlib.arena_demo.arena_demo( self.rows, self.cols )
+        # arena = ppSlib.arena_demo.arena_demo( self.rows, self.cols )
+        arena = arena_demo.load_demo( case = 1 )
         self.arena = arena
 
 
