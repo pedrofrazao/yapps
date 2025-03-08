@@ -3,17 +3,43 @@ import sys
 import os
 from random import randint
 import curses
+import json
 
 dirname = os.path.dirname(__file__)
 sys.path.append(dirname)
 
 from ppSlib.arena_sync_model import ArenaSyncModel
 from ppSlib.agent import Agent, AgentState, Carnivore, Prey, Block, Trap, LivingAgent
+import datetime
+import argparse
 
 rows=16
 cols=16
 
-def main(stdscr):
+
+
+def load_from_file():
+    parser = argparse.ArgumentParser(description='Matrix CLI')
+    parser.add_argument('-f', '--file', type=str, help='File to load the arena from')
+    args = parser.parse_args()
+
+    if args.file:
+        with open(args.file, 'r') as file:
+            try:
+                config = json.load(file)
+            except json.JSONDecodeError as e:
+                print(f"Error loading configuration: {e}")
+                sys.exit(1)
+                return
+        
+        newarena = ArenaSyncModel.deserialize(config)
+
+        return newarena
+    else:
+        return None
+
+
+def _load_demo_arena():
     # Initialize the arena and objects
     arena = ArenaSyncModel(rows, cols, sync_model='Sync')
     num_traps = 5
@@ -42,6 +68,18 @@ def main(stdscr):
         obj = Carnivore( state_args={ 'energy':energy}, arena=arena, see_length=3 )
         arena.add_to_random_position(obj)
 
+    return arena
+
+
+def main(stdscr):
+
+    arena = load_from_file()
+    if arena is None:
+        # load default
+        arena = _load_demo_arena()
+
+    arena2 = _load_demo_arena()
+
     # Display the arena
     stdscr.addstr(0, 0, str(arena))
     stdscr.addstr(rows+2, 0, "====")
@@ -56,6 +94,14 @@ def main(stdscr):
         key = stdscr.getch()
         if key == ord('q'):
             break
+        elif key == ord('s'):
+            now = datetime.datetime.now()
+            filename = f"arena-{now.strftime('%Y%m%d%H%M%S')}.txt"
+            with open(filename, 'w') as f:
+                json.dump(arena.serialize(), f, indent=4)
+
+            stdscr.addstr(height - 2, 0, f"Arena saved to {filename}")
+            stdscr.refresh()
 
 
 def loop(stdscr, arena, steps=5):

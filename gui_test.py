@@ -38,7 +38,7 @@ if __name__ == "__main__":
     
 
     # Load initial configuration
-    app = MatrixGUI(10, 10)
+    app = MatrixGUI(25, 25)
 
     #app.from_configuration('config.json')
         # matrix_size = config["matrix_size"]

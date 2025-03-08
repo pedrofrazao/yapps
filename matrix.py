@@ -1,7 +1,9 @@
 import tkinter as tk
 import random
+import time
 from time_series_plot import TimeSeriesPlot  # Import the TimeSeriesPlot class
 from arena import Arena, ArenaObject
+import ppSlib.arena_demo
 from tkinter import filedialog
 import lib.matrix_config
 import json
@@ -19,6 +21,8 @@ class MatrixGUI:
             self.arena.add_to_position(random.randint(0, rows-1), random.randint(0, cols-1), obj)
         ## TEST ONLY
         self.root = tk.Tk()
+        self.max_speed = 1  # Maximum speed for the simulation
+        self.last_step_time = 0  # Last time the step method was called
         root = self.root
 
         self.create_menu()
@@ -200,10 +204,15 @@ class MatrixGUI:
         self.running = False  # Stop the execution after a single step
 
     def step(self, force_1_step=False ):
+        delta = time.time() - self.last_step_time
+        if( delta < self.max_speed ):
+            time.sleep( (self.max_speed - delta) )
+            
         # random.shuffle(self.last_updates)
         if self.running or force_1_step:
             self.log_message("step")
-            self.arena._move_objects_at_random()
+            # self.arena._move_objects_at_random()
+            self.arena.run_step()
             self.update_display()
             self.update_time_series()
             if self.running:
@@ -220,6 +229,7 @@ class MatrixGUI:
         menubar.add_cascade(label="File", menu=file_menu)
         file_menu.add_command(label="Load Configuration", command=self.load_configuration)
         file_menu.add_command(label="Save Configuration", command=self.save_configuration)
+        file_menu.add_command(label="Demo config", command=self.demo_config)
         file_menu.add_separator()
         file_menu.add_command(label="Quit", command=self.exit_application)
 
@@ -234,6 +244,10 @@ class MatrixGUI:
             with open(file_path, 'w') as file:
                 json.dump(self.arena.serialize(), file, indent=4)
 
+
+    def demo_config(self):
+        arena = ppSlib.arena_demo.arena_demo( self.rows, self.cols )
+        self.arena = arena
 
 
 # if __name__ == "__main__":

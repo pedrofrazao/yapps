@@ -3,8 +3,10 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
 
+from pprint import pprint
 import unittest
 from ppSlib.arena_sync_model import ArenaSyncModel, asmObject
+from ppSlib.agent import Agent, AgentState, Carnivore, Prey, Block, Trap, LivingAgent
 
 
 class TestArenaSyncModel(unittest.TestCase):
@@ -64,7 +66,37 @@ class TestArenaSyncModelUpdate(unittest.TestCase):
         o2.run_update()
         self.assertEqual( 2, o2.state['e'], "change on the internal state" )
         
-    
+class TestArenaRun(unittest.TestCase):
+    def setUp(self):
+        self.arena = ArenaSyncModel(5, 5, sync_model='Sync')
+        obj1 = Prey( state_args={ 'energy':10}, arena=self.arena)
+        self.arena.add_to_random_position(obj1)
+
+    def test_run(self):
+        self.assertEqual( 1, self.arena.num_objects )
+        o = self.arena.get_objects()[0]
+        x,y = o.x, o.y
+        # print( f"o: {o.nickname}: {o.x},{o.y} - {o.direction()}" )
+        self.arena.run_step()
+        # print( f"o: {o.nickname}: {o.x},{o.y} - {o.state.direction}" )
+        if( o.direction() != 5 ):
+            self.assertNotEqual( (x,y), (o.x, o.y), "move" )
+        self.assertEqual( 1, self.arena.num_objects )
+
+    def test_run_many(self):
+        self.assertEqual( 1, self.arena.num_objects )
+        o = self.arena.get_objects()[0]
+        x,y = o.x, o.y
+        for i in range(100):
+            self.arena.run_step()
+            print( ">>"+"\n".join( o.msg ) )
+            try:
+                self.assertNotEqual( (x,y), (o.x, o.y), "move" )
+            except AssertionError as e:
+                # print(f"Assertion failed: {e}")
+                print( "\n".join( o.msg ) )
+                raise AssertionError(f"Assertion failed: {e}. Internal state of 'o': {o.state}")
+            self.assertEqual( 1, self.arena.num_objects )
 
 if __name__ == '__main__':
     unittest.main( verbosity=4 )

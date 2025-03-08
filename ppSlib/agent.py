@@ -1,130 +1,7 @@
 from ppSlib.arena_sync_model import ArenaSyncModel, asmObject
+from ppSlib.agent_direction_selector import random_direction_selector
 from abc import abstractmethod, ABC
 from random import randint
-
-
-# ##
-# ## Agent Logic
-# ##
-# class AgentLogic(ABC):
-#     def __init__( self, *args ):
-#         self.actions = [ *args ]
-
-#     def select_action(self, agent, surroundings=[]):
-#         """
-#         Select an action to perform
-#         return: action, {action_params}, target_agent
-#         """
-#         selected_action = random.choice( self.actions ) if len(self.actions) > 0 else None
-#         action_params = {}
-#         target_agent = None
-#         return selected_action, action_params, target_agent
-
-#     def do_action(self, agent, surroundings=[]):
-#         """
-#         select and do an action
-#         return: new_agent_state, new_target_agent_state, elapsed_time
-#         """
-#         action = self.select_action( agent, surroundings )
-#         if action is None:
-#             return agent.state, None, 0
-#         else:
-#             raise ValueError("the action needed to be defined")
-
-#         if action is not None:
-#             action.do_action(agent, target_agent)
-
-# class PreyLogic(AgentLogic):
-#     def __init__(self):
-#         super().__init__( ActionMove(), ActionEat() )
-
-# class BlockLogic(AgentLogic):
-#     def __init__(self):
-#         super().__init__()
-
-#     def select_action(self, agent, surroundings=[]):
-#         return None, {}, None
-
-# ##
-# ## available actions
-# ##
-# class Action(ABC):
-#     def __init__(self, success_probability=100, time_consumption=99, parameters={} ):
-#         self.success_probability = success_probability
-#         self.time_consumption = time_consumption
-#         self.parameters = parameters
-#         self.energy_consumption = 0
-
-#     def logic_name(self):
-#         return self.__class__.__name__
-    
-#     def _self_effect(self, agent):
-#         state = agent.state.clone()
-#         state.energy -= self.energy_consumption
-#         return state
-
-#     def _target_effect(self, target_agent):
-#         state = target_agent.state.clone()
-#         return state
-
-#     def solo_action(self, agent):
-#         new_state = self._self_effect(agent)
-#         return new_state, None, self.time_consumption
-
-#     def pared_action(self, agent, target_agent):
-#         new_t_state = self._target_effect(target_agent)
-#         new_a_state = self._self_effect(agent)
-#         return new_a_state, new_t_state, self.time_consumption
-
-# class ActionMove(Action):
-#     def __init__(self, success_probability=100, time_consumption=99, energy_consumption=2 ):
-#         parameters = { 'length': ParamLength(), 'direction': ParamDirection() }
-#         super().__init__(success_probability, time_consumption, energy_consumption, parameters)
-
-#     def do_action(self, agent):
-#         params = self.parameters
-#         length = params['length'].random_choice_values()
-#         direction = params['direction'].random_choice_values()
-#         agent.move(length, direction)
-
-# # class Params:
-# #     def __init__(self, *args):
-# #         self.params = args
-
-# #     @abstractmethod
-# #     def possible_values(self):
-# #         pass
-
-# #     @classmethod
-# #     def random_choice_values(cls):
-# #         return random.choice( cls.possible_values() )
-
-# #     def params_name(self):
-# #         return self.__class__.__name__
-
-# # class ParamLength(Params):
-# #     def __init__(self, *args):
-# #         super().__init__(*args)
-
-# #     def possible_values(self):
-# #         return [1,2]
-                
-# # class ParamDirection(Params):
-# #     def __init__(self, *args):
-# #         super().__init__(*args)
-
-# #     def possible_values(self):
-# #         return [1,2,3,4,5,6,7,8,9]
-    
-
-
-# class ActionEat(Action):
-#     def __init__(self, success_probability=100, time_consumption=99, energy_consumption=1 ):
-#         parameters = {}
-#         super().__init__(success_probability, time_consumption, energy_consumption, parameters)
-
-#     def do_action(self, agent, target_agent):
-#         agent.state.energy
 
 ##
 ## Agent State
@@ -229,7 +106,7 @@ class Agent(asmObject):
         return f"{self.nickname}"
     
     def info(self):
-        return f"E: {self.energy()} - {self.msg[-1:]}"
+        return f"E{self.energy()} D{self.state.direction} - {self.msg[-1:]}"
 
 class NonlivingAgent(Agent):
     def __init__(self, **kwargs):
@@ -249,16 +126,21 @@ class LivingAgent(Agent):
         if 'select_direction' in kwargs:
             if callable(kwargs['select_direction']):
                 self.direction_selector = kwargs['select_direction']
+            elif isinstance(kwargs['select_direction'], tuple):
+                self.select_direction_func_name = kwargs['select_direction'][0]
+                self.select_direction_func_kwargs = kwargs['select_direction'][1]
+                self.direction_selector = globals().get(self.select_direction_func_name)
             else:
                 raise ValueError("select_direction must be callable")
             del kwargs['select_direction']
         else:
-            self.direction_selector = lambda surrounding: randint(1,9) if randint(1,10) > 7 else self.direction()
+            self.select_direction_func_kwargs = { 'curr_dir': None, 'prob_change': 30 }
+            self.direction_selector = random_direction_selector
 
         super().__init__( **kwargs )
 
     def select_direction(self, surrounding=None):
-        return self.direction_selector(surrounding)
+        return self.direction_selector(surrounding, **self.select_direction_func_kwargs)
 
 class Block(NonlivingAgent):
     def __init__(self, **kwargs):

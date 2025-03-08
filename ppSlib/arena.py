@@ -322,6 +322,9 @@ class Arena:
             arena_str += row_str + "\n"
         return arena_str
     
+    def __repr__(self):
+        return f"Arena({self.rows}x{self.cols}, #{self.num_objects})"
+
     def objects_info(self, list=False):
         msg = [obj.info() for obj in self.get_objects()]
         return msg if list else "\n".join(msg)

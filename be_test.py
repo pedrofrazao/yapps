@@ -15,17 +15,19 @@ cols=10
 
 class block(Agent):
     def __init__(self, arena=None):
-        super().__init__( "B", state={}, arena=arena)
+        super().__init__( "B", state={}, arena=arena, volume=100, can_move=False )
 
     def __str__(self):
         return "XX"
 
 class prey(Agent):
+    id = 1
     def __init__(self,state={}, priority=10, arena=None):
-        super().__init__( f"p{prey.id}", AgentState(self,**state), priority=priority, arena=arena )
+        super().__init__( f"p{prey.id}", AgentState(self,**state), priority=priority, arena=arena, volume=33 )
         prey.id += 1
 
     def run_interaction(self, context=None):
+        super().run_interaction()
         s = self.get_obj_state()
         c = self.arena.get_pos_surrounding(self.x, self.y)
     
@@ -38,6 +40,8 @@ class prey(Agent):
             self.add_msg( f"low energy stop moving" )
 
     def run_update(self, context=None):
+        super().run_update()
+        self.add_msg( f"run_update" )
         s = self.get_obj_state()
         s.energy -= 1
         self.set_obj_state(s)
@@ -78,7 +82,7 @@ def main(stdscr):
     
 
     # Run the loop with curses
-    loop(stdscr, arena, 20)
+    loop(stdscr, arena, 200)
 
     height, width = stdscr.getmaxyx()
     stdscr.addstr(height - 1, 0, "Press 'q' to exit.")
@@ -105,7 +109,7 @@ def loop(stdscr, arena, steps=5):
         arena.run_step()
 
         # Wait for a short period to create a visual effect
-        curses.napms(5000)
+        curses.napms(500)
 
 if __name__ == "__main__":
     curses.wrapper(main)
