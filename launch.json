@@ -7,7 +7,7 @@
             "request": "launch",
             // "program": "${workspaceFolder}/matrix_cli2.py",
             // "args": ["-f", "arena-20250223104927.txt"],
-            "program": "${workspaceFolder}/gui_test.py",
+            "program": "${workspaceFolder}/ppS.py",
             // "program": "${workspaceFolder}/ppSlib/prrty_list/test_basic.py",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"

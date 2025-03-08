@@ -170,7 +170,7 @@ class Arena:
         #         for obj in self.grid[row][col]:
         #             pos_obj_list.append(positional_object(row, col, None, obj.name))
         # return pos_obj_list
-        return [positional_object(obj.x, obj.y, None, obj.name) for obj in self.get_objects()]
+        return [positional_object(obj.x, obj.y, None, obj.nickname) for obj in self.get_objects()]
 
     def _move_objects_at_random(self):
         for o in self.get_objects():

@@ -106,7 +106,7 @@ class Agent(asmObject):
         return f"{self.nickname}"
     
     def info(self):
-        return f"E{self.energy()} D{self.state.direction} - {self.msg[-1:]}"
+        return f"e{self.energy()} d{self.state.direction} - {self.msg[-1:]}"
 
 class NonlivingAgent(Agent):
     def __init__(self, **kwargs):

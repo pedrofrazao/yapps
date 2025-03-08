@@ -3,6 +3,7 @@ import random
 import time
 from time_series_plot import TimeSeriesPlot  # Import the TimeSeriesPlot class
 from arena import Arena, ArenaObject
+from ppSlib.agent import LivingAgent
 import ppSlib.ArenaDemo as arena_demo
 from tkinter import filedialog
 # import ppSlib.matrix_config
@@ -46,13 +47,13 @@ class MatrixGUI:
         self.step_button = tk.Button(self.button_frame, text="Step", command=self._single_step)
         self.step_button.pack(side=tk.LEFT)
 
-        # Create a text area for execution messages
-        self.text_area = tk.Text(self.left_frame, height=10)
-        self.text_area.pack(side=tk.TOP, fill=tk.X)
-
         # Create a frame for the plot
-        self.plot_frame = tk.Frame(self.left_frame)
-        self.plot_frame.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
+        self.plot_frame = tk.Frame(self.left_frame, height=int(root.winfo_screenheight() / 4))
+        self.plot_frame.pack(side=tk.TOP, fill=tk.X)
+
+        # Create a text area for execution messages
+        self.text_area = tk.Text(self.left_frame)
+        self.text_area.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
 
         # Create a canvas for the matrix
         self.canvas = tk.Canvas(root)
@@ -87,25 +88,6 @@ class MatrixGUI:
         
         self.arena = newarena
         self.update_display()
-
-        
-        # cell_types = config.get("cell_types", [])
-        # num_by_types = config.get("cells", {}).get("num_by_types", {})
-        
-        # for cell_type in cell_types:
-        #     num_cells = num_by_types.get(cell_type, 0)
-        #     for _ in range(num_cells):
-        #         obj = ArenaObject(cell_type)
-        #         self.arena.add_to_position(random.randint(0, self.rows-1), random.randint(0, self.cols-1), obj)
-        
-        # self.draw_matrix()
-        # config = lib.matrix_config.load_configuration(configuration_file)
-        # if config:
-        #     matrix_size = config["matrix_size"]
-        #     cell_types = config["cell_types"]
-        #     num_by_types = config["cells"]["num_by_types"]
-        #     self.rows(matrix_size["rows"])
-        #     self.cols(matrix_size["columns"])
 
     def _draw_matrix_cells(self):
         for o in self.last_updates:
@@ -156,29 +138,30 @@ class MatrixGUI:
         if 0 <= col < self.cols and 0 <= row < self.rows:
             text = ""
             l = self.arena.get_position(row, col)
-            if l:
-                text = "\n".join(l[0].msg)
+            for o in l:
+                text = f"{o.info()}\n"
 
             color = self.cell_colors.get((row, col), "white")
             # Create a popup message
             popup = tk.Toplevel(self.root)
             popup.wm_overrideredirect(True)
             popup.geometry(f"+{event.x_root + 10}+{event.y_root + 10}")
-            label = tk.Label(popup, text=f"Cell ({row}, {col})\nColor: {color}\n{text}", background="yellow")
+            label = tk.Label(popup, text=f"Cell ({row}, {col})\n{text}", background="yellow")
             label.pack()
             popup.bind("<Motion>", lambda e: popup.destroy())
 
     def start(self):
-        self.log_message("Start button clicked")
+        # self.log_message("Start button clicked")
         self.running = True
         self.step()
 
     def stop(self):
-        self.log_message("Stop button clicked")
+        # self.log_message("Stop button clicked")
         self.running = False
 
     def update_time_series(self):
-        self.time_series_plot.add_value(random.random())
+        pass
+        # self.time_series_plot.add_value(random.random())
         # self.root.after(1000, self.update_time_series)  # Update every second
 
     def log_message(self, message):
@@ -211,13 +194,26 @@ class MatrixGUI:
             
         # random.shuffle(self.last_updates)
         if self.running or force_1_step:
-            self.log_message("step")
+            # self.log_message("step")
             # self.arena._move_objects_at_random()
             self.arena.run_step()
+            self._msg()
+            self._add_to_plot()
             self.update_display()
             self.update_time_series()
             if self.running:
                 self.root.after(1, self.step)
+
+    def _add_to_plot(self):
+        # get the number of alive agents
+        num_alive = len([obj for obj in self.arena.get_objects() if isinstance(obj, LivingAgent)])
+        self.time_series_plot.add_value(num_alive)
+
+    def _msg(self):
+        self.log_message( f"## Epoch: {self.arena.epoch} ##" )
+        for obj in sorted(self.arena.get_objects(), key=lambda x: x.nickname):
+            if( isinstance(obj, LivingAgent) ):
+                self.log_message( f"{obj.nickname}-{obj.info()}" )
 
     def run(self):
         self.root.mainloop()
@@ -250,15 +246,4 @@ class MatrixGUI:
         # arena = ppSlib.arena_demo.arena_demo( self.rows, self.cols )
         arena = arena_demo.load_demo( case = 1 )
         self.arena = arena
-
-
-# if __name__ == "__main__":
-#     root = tk.Tk()
-#     app = MatrixGUI(root, 10, 10)
-
-#     def periodic_step():
-#         app.step()
-#         root.after(1000, periodic_step)  # Call step method every second
-
-#     root.after(1000, periodic_step)  # Start the periodic step
-#     root.mainloop()
+        self.update_display()
