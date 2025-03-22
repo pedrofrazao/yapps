@@ -38,6 +38,31 @@ class ArenaSyncModel(Arena):
         arena_str = str(self.epoch) + super().__str__()
         return arena_str
 
+class asmState():
+    def __init__(self, state):
+        self.state = state
+        self._next_state = None
+
+    def get_curr_state(self):
+        return self.state
+
+    def get_next_state(self):
+        if self._next_state is None:
+            self._next_state = self.state.copy()
+        return self._next_state
+    
+    def getsattr(self, attr, default=None):
+        return self.state.get(attr, default)
+
+    def switch_to_next_state(self):
+        if self._next_state is None:
+            return
+        else:
+            self.state = self._next_state
+
+    def __str__(self):
+        return str(self.state)
+
 class asmObject(ArenaObject,smRole):
     """
     class to connect the arena object with the sync_model object
@@ -47,24 +72,39 @@ class asmObject(ArenaObject,smRole):
     """
     def __init__(self, name, state, priority=0, log=None, **kwargs):
         super().__init__(name, **kwargs)
-        self.state = state
+        self.asmstate = asmState(state)
         self.priority = priority
         self.log = log if log is not None else self.add_msg
-        self._next_state = None
+
+    def state(self):
+        return self.asmstate.state
 
     def get_obj_state(self):
-        return self.state.copy()
+        return self.asmstate.state.clone()
     
     def get_next_obj_state(self):
-        if( self._next_state is None ):
-            self._next_state = self.get_obj_state()
-        return self._next_state
+        return self.asmstate._next_state
 
-    def set_obj_state(self, state):
-        self._next_state = state
+    def set_obj_state(self, state = None):
+        if state is None:
+            self.state.switch_to_next_state()
+        else:
+            self.state = state
 
     def get_priority(self):
         return self.priority
+
+    def getsattr(self, attr):
+        # s = self.asmstate.get_curr_state()
+        return self.asmstate.getsattr(attr, None)
+    
+    def setsattr(self, attr, value):
+        ns = self.asmstate.get_next_state()
+        ns[attr] = value
+
+    def add2sattr(self, attr, value):
+        ns = self.asmstate.get_next_state()
+        ns[attr] = ns[attr] + value
 
     def run_interaction(self, context=None):
         pass
@@ -74,9 +114,7 @@ class asmObject(ArenaObject,smRole):
     def run_update(self, context=None):
         # if(self.log):
         #     self.log( f"update: {self.name}" )
-        if(self._next_state is not None):
-            self.state = self._next_state
-            self._next_state = None
+        self.asmstate.switch_to_next_state()
 
     def __str__(self):
         return self.name + " " + str(self.state)

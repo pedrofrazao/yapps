@@ -9,12 +9,16 @@ def sync_model_factory(model_type):
         raise ValueError(f"Unknown model type: {model_type}")
 
 class smRole:
+
+    # get_obj_state() - get current object state
     @abstractmethod
     def get_obj_state(self):
         raise NotImplementedError("Subclasses must override get_obj_state()")
+    # set_obj_state() - set new object state
     @abstractmethod
     def set_obj_state(self, state):
         raise NotImplementedError("Subclasses must override set_obj_state()")
+    
     @abstractmethod
     def run_interaction(self, context=None):
         raise NotImplementedError("Subclasses must override run_interaction()")

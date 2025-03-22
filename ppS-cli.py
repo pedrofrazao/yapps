@@ -9,7 +9,7 @@ dirname = os.path.dirname(__file__)
 sys.path.append(dirname)
 
 from ppSlib.arena_sync_model import ArenaSyncModel
-from ppSlib.agent import Agent, AgentState, Carnivore, Prey, Block, Trap, LivingAgent
+from ppSlib.agent import Agent, Carnivore, Prey, Block, Trap, LivingAgent
 import datetime
 import argparse
 

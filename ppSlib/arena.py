@@ -217,11 +217,13 @@ class Arena:
         obj.setposition(x,y)
         return True
     
-    def add_to_random_position(self, obj):
+    def add_to_random_position(self, obj, empty=False):
         """Add an object to a random position in the arena."""
         x = random.randint(0, self.rows-1)
         y = random.randint(0, self.cols-1)
         for i in range(0,10):
+            if empty and self.get_num_objects(x, y) != 0:
+                continue 
             if self.add_to_position(x, y, obj):
                 return True
         return False
@@ -305,6 +307,10 @@ class Arena:
     def get_pos_surrounding(self, x, y, direction=0, length=1):
         """Get the surrounding objects of the current position."""
         return self.SurroundingClass(self, x, y, direction, length)
+
+    def distance_between_objects(self, obj1, obj2):
+        """Get the distance between two objects."""
+        return self.SurroundingClass._distance_xykz(obj1.x,obj1.y, obj2.x,obj2.y)
 
     def __str__(self):
         """Create a string representation of the arena with the number of objects at each position."""
