@@ -273,7 +273,9 @@ class Prey(LivingAgent):
         return None
     
     def select_action(self, state, surroundings):
-        return "move", { 'direction': randint(1,9) }
+        dir = randint(1,9)
+        self.setsattr('direction', dir)
+        return "move", { 'direction': dir }
 
     # override the die method to generate a new prey on a random position
     def die(self):

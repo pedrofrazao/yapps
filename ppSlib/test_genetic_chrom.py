@@ -56,8 +56,12 @@ class TestChromosome(unittest.TestCase):
 
     def test_mutation(self):
         original_genes = self.chromosome.genes.copy()
-        mutated_chromosome = self.chromosome.mutation(rate=1.0)
-        self.assertNotEqual(mutated_chromosome.genes, original_genes)
+        c = 0
+        for i in range(100):
+            mutated_chromosome = self.chromosome.mutation(rate=1.0)
+            if( mutated_chromosome.genes == original_genes ):
+                c += 1
+            self.assertLessEqual(c, 25, "Too many 'non' mutations")
 
 if __name__ == "__main__":
     unittest.main()

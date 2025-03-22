@@ -37,7 +37,7 @@ class Alleles:
         return iter(self.alleles.items())
 
 class Chromosome:
-    def __init__(self, alleles, values=None):
+    def __init__(self, alleles, values=None, mutation_rate=0.001):
         self.alleles = alleles
         self.genes = {}
         if values:
@@ -63,7 +63,9 @@ class Chromosome:
             new_genes[a] = self.gene_value(a) if randint(0,1) == 0 else other.gene_value(a)
         return Chromosome(self.alleles, new_genes)
     
-    def mutation(self, rate=0.001):
+    def mutation(self, rate=None):
+        if rate is None:
+            rate = self.mutation_rate
         for a in self.genes.keys():
             if randint(0, 1) < rate:
                 self.genes[a] = self.alleles.random_value_for(a)

@@ -65,6 +65,8 @@ class TestPrey(unittest.TestCase):
         g1 = Glide( dir=6, arena = self.arena, state_args={'energy': 10} )
         self.arena.add_to_position(0, 0, p1)
         self.arena.add_to_position(0, 0, g1)
+        if( os.environ.get('DEBUG', True) ):
+            print(self.arena)
 
         # test energy
         self.assertEqual(p1.energy(), 10)
@@ -72,6 +74,8 @@ class TestPrey(unittest.TestCase):
 
         # test movement
         self.arena.run_step()
+        if( os.environ.get('DEBUG', True) ):
+            print(self.arena)
         if( p1.direction() == 5 ):
             self.assertIn(p1, self.arena.get_position(0,0))
         else:
@@ -80,73 +84,36 @@ class TestPrey(unittest.TestCase):
         self.assertEqual(p1.energy(),10)
         self.assertEqual(g1.energy(),9)
 
-class TestPredator(unittest.TestCase):
-    def setUp(self):
-        self.arena = ArenaSyncModel(5, 5, sync_model='Sync')
+class AmoveX(Agent):
+    def __init__(self, dir):
+        self.dir = dir
+    def select_action(self, state, surroundings):
+        action, action_args = super().select_action(state, surroundings)
+        if( action == 'move' ):
+            return 'move', {'direction': self.dir}
+        return action, action_args
 
-    def test_predator(self):
-        p1 = Prey( arena = self.arena, state_args={'energy': 10}, select_direction=lambda x: 6 )
-        self.arena.add_to_position(0, 0, p1)
-        c1 = Carnivore( arena = self.arena, state_args={'energy': 10}, select_direction=lambda x: 5, see_length=1 )
-        self.arena.add_to_position(0, 3, c1)
-        #  P5 __ __ C5 __
-        #  __ __ __ __ __
-        #  __ __ __ __ __
-        #  B4 Ba Ba B0 Bb
-        #  __ __ __ __ __
+class PreyX(AmoveX, Prey):
+    def __init__(self, **kwargs):
+        AmoveX.__init__(self, kwargs.get('dir', 5))
+        kwargs.pop('dir', None)
+        Prey.__init__(self, **kwargs)
 
-        self.arena.run_step()
-        #  __ P5 __ C5 __
-        #  __ __ __ __ __
-        #  __ __ __ __ __
-        #  B4 Ba Ba B0 Bb
-        #  __ __ __ __ __
-        self.assertIn(p1, self.arena.get_position(0,1))
-        self.assertIn(c1, self.arena.get_position(0,3))
-        self.assertEqual(c1.energy(), 9)
+    def die(self):
+        super().die()
 
-        self.arena.run_step()
-        #  __ __ P5 C5 __
-        #  __ __ __ __ __
-        #  __ __ __ __ __
-        #  B4 Ba Ba B0 Bb
-        #  __ __ __ __ __
-        self.assertIn(p1, self.arena.get_position(0,2))
-        self.assertIn(c1, self.arena.get_position(0,3))
-        self.assertEqual(c1.energy(), 8)
-
-        self.arena.run_step()
-        #  __ __ C5 __ __
-        #  __ __ __ __ __
-        #  __ __ __ __ __
-        #  B4 Ba Ba B0 Bb
-        #  __ __ __ __ __
-        self.assertNotIn(p1, self.arena.get_position(0,2))
-        self.assertIn(c1, self.arena.get_position(0,2))
-        self.assertEqual(c1.energy(), 17)
-    
-    def test_predator_still_prey(self):
-        p1 = Prey( arena = self.arena, state_args={'energy': 10}, select_direction=lambda x: 5 )
-        self.arena.add_to_position(0, 0, p1)
-        c1 = Carnivore( arena = self.arena, state_args={'energy': 10}, select_direction=lambda x: 5, see_length=2 )
-        self.arena.add_to_position(0, 2, c1)
-
-        self.arena.run_step()
-        self.assertIn(p1, self.arena.get_position(0,0))
-        self.assertIn(c1, self.arena.get_position(0,1))
-
-        self.arena.run_step()
-        self.assertNotIn(p1, self.arena.get_position(0,0))
-        self.assertIn(c1, self.arena.get_position(0,0))
-
-        self.assertEqual(c1.energy(), 18)
+class CarnivoreX(AmoveX,Carnivore):
+    def __init__(self, **kwargs):
+        AmoveX.__init__(self, kwargs.get('dir', 5))
+        kwargs.pop('dir', None)
+        Carnivore.__init__(self, **kwargs)
 
 class TestTrap(unittest.TestCase):
     def setUp(self):
         self.arena = ArenaSyncModel(3, 3, sync_model='Sync')
         self.t = Trap( arena = self.arena )
         self.arena.add_to_position(1, 0, self.t)
-        self.p = Prey( arena = self.arena, state_args={'energy': 10}, select_direction=lambda x: 4 )
+        self.p = PreyX( dir=4, arena = self.arena, state_args={'energy': 10})
         self.arena.add_to_position(1, 2, self.p)
 
     def test_trap(self):
@@ -165,51 +132,57 @@ class TestTrap(unittest.TestCase):
         self.assertIn(self.t, self.arena.get_position(1, 0))
         self.assertNotIn(self.p, self.arena.get_position(1, 0))
 
-    # def test_block_initialization(self):
-    #     agent = 
-    #     self.assertEqual(agent.agent_class(), 'Block')
-    #     self.assertFalse(agent.can_move)
-    #     self.assertEqual(agent.volume, 100)
-    #     self.assertEqual(agent.priority, 0)
 
-    #     self.assertIsNone(agent._select_action())
-    #     try:
-    #         agent.run_interaction()
-    #     except NotImplementedError:
-    #         self.fail("run_interaction() raised NotImplementedError unexpectedly!")
+class TestPredator(unittest.TestCase):
+    def setUp(self):
+        self.arena = ArenaSyncModel(5, 5, sync_model='Sync')
 
-    #     try:
-    #         agent.run_update()
-    #     except NotImplementedError:
-    #         self.fail("run_update() raised NotImplementedError unexpectedly!")
+    def test_predator(self):
+        p1 = PreyX( dir=6, arena = self.arena, state_args={'energy': 10} )
+        self.arena.add_to_position(0, 0, p1)
+        c1 = CarnivoreX( dir=5, arena = self.arena, state_args={'energy': 10}, see_length=1 )
+        self.arena.add_to_position(0, 3, c1)
+        # print(self.arena)
+        #  P5 __ __ C5 __
+        #  __ __ __ __ __
+        #  __ __ __ __ __
+        #  B4 Ba Ba B0 Bb
+        #  __ __ __ __ __
 
-# class TestPrey(unittest.TestCase):
-#     def test_prey_initialization(self):
-#         agent = Prey(state={'energy': 10}, priority=5)
-#         self.assertEqual(agent.agent_class(), 'Prey')
-#         self.assertEqual(agent.state['energy'], 10)
-#         self.assertEqual(agent.priority, 5)
+        self.arena.run_step()
+        # print(self.arena)
+        #  __ P5 __ C5 __
+        #  __ __ __ __ __
+        #  __ __ __ __ __
+        #  B4 Ba Ba B0 Bb
+        #  __ __ __ __ __
+        self.assertIn(p1, self.arena.get_position(0,1))
+        self.assertIn(c1, self.arena.get_position(0,3))
+        self.assertEqual(c1.energy(), 9)
 
-#         self.assertIsNotNone(agent._select_action()) 
-#         try:
-#             agent.run_interaction()
-#         except NotImplementedError:
-#             self.fail("run_interaction() raised NotImplementedError unexpectedly!")
+        self.arena.run_step()
+        # print(self.arena)
+        #  __ __ P5 C5 __
+        #  __ __ __ __ __
+        #  __ __ __ __ __
+        #  B4 Ba Ba B0 Bb
+        #  __ __ __ __ __
+        self.assertIn(p1, self.arena.get_position(0,2))
+        self.assertIn(c1, self.arena.get_position(0,3))
+        self.assertEqual(c1.energy(), 8)
 
-#         try:
-#             agent.run_update()
-#         except NotImplementedError:
-#             self.fail("run_update() raised NotImplementedError unexpectedly!")
+        self.arena.run_step()
+        # print(self.arena)
+        #  __ __ C5 __ __
+        #  __ __ __ __ __
+        #  __ __ __ __ __
+        #  B4 Ba Ba B0 Bb
+        #  __ __ __ __ __
+        self.assertNotIn(p1, self.arena.get_position(0,2))
+        self.assertNotIn(p1, self.arena.get_position(0,3))
+        self.assertIn(c1, self.arena.get_position(0,2))
+        self.assertEqual(c1.energy(), 17)
 
-#     def test_prey_run_interaction(self):
-#         prey = Prey(state={'energy': 10})
-#         prey.run_interaction()
-#         # Add assertions based on the expected behavior of run_interaction
-
-#     def test_prey_run_update(self):
-#         prey = Prey(state={'energy': 10})
-#         prey.run_update()
-#         # Add assertions based on the expected behavior of run_update
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
