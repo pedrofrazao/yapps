@@ -9,6 +9,7 @@ class Surrounding:
         self.direction = direction
         self.length = length
         self.objects_meta = []
+        self.empty_pos = []
         self.objects = self._get_surrounding() # list of objects
 
     def sorted(self):
@@ -27,6 +28,11 @@ class Surrounding:
                     continue
 
                 objs = self.arena.get_position(px, py)
+                if( len(objs) == 0 ):
+                    # empty position
+                    self.empty_pos.append((px,py))
+                    continue
+
                 for o in objs:
                     distance = self.distance_xy(x,y)
                     direction = self.direction_xy(x,y)
@@ -36,6 +42,23 @@ class Surrounding:
 
         self.objects_meta = meta
         return surrounding
+
+    def _all_positions_at_distance(self):
+        """Get all positions at a certain distance from a point."""
+        distance = self.length
+        positions = []
+        for x in range( self.x - distance, self.x + distance +1 ):
+            for y in range( self.y - distance, self.y + distance +1 ):
+                px,py = self.arena.convert_position(x, y)
+                if px is None or py is None:
+                    # outbound position
+                    continue
+                positions.append( (px,py) )
+        return positions
+
+    def find_empty_position(self):
+        """Find an empty position in the surrounding."""
+        return self.empty_pos
 
     def get_direction_to(self, obj):
         """Get the direction of an object in the surrounding."""

@@ -250,6 +250,24 @@ class TestArenaSurrounfingDist2(unittest.TestCase):
         self.arena.add_to_position(4, 1, self.o1)
         self.arena.add_to_position(4, 2, self.o2)    
 
+    def test_find_all_position(self):
+        surrounding = SurroundingChebyshev( self.arena, 0, 1, length=1)
+
+        pos = surrounding._all_positions_at_distance()
+        self.assertEqual(9, len(pos))
+
+        for p in ((4,0), (4,1), (4,2),
+                  (0,0), (0,1), (0,2),
+                  (1,0), (1,1), (1,2)):
+            self.assertIn(p,pos)
+
+        empty = surrounding.find_empty_position()
+        self.assertEqual(5, len(empty))
+        for p in ((0,2), (1,0), (1,1), (1,2), (4,0)):
+            self.assertIn(p,empty)
+        for p in ((0,0), (0,1), (4,1), (4,2)):
+            self.assertNotIn(p,empty)
+
     def test_distance_chebyshev(self):
         surrounding = SurroundingChebyshev( self.arena, 0, 1, length=1)
 
