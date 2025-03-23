@@ -4,8 +4,9 @@ connection between arena and sync_model
 from ppSlib.arena import Arena, ArenaObject
 from ppSlib.sync_model.sync_model_prrt_list import SyncModelPrrtList
 from ppSlib.sync_model.sync_model import smRole
+from ppSlib.asmStats import asmStats
 
-class ArenaSyncModel(Arena):
+class ArenaSyncModel(Arena,asmStats):
     """
     class to connect the arena with the sync_model
     - add_to_position() / remove_from_position()
@@ -16,6 +17,7 @@ class ArenaSyncModel(Arena):
         stype = kwargs.get('sync_model', 'Sync')
         self.sync_model = SyncModelPrrtList(sync_model=stype)
         self.epoch = 0
+        asmStats.__init__(self,**kwargs)
 
     def add_to_position(self, x, y, obj):
         t = super().add_to_position(x, y, obj)
@@ -33,6 +35,8 @@ class ArenaSyncModel(Arena):
     def run_step(self):
         self.sync_model.run_single_step()
         self.epoch += 1
+        # to collect some stats about the arena
+        asmStats.run_step(self)
 
     def __str__(self):
         arena_str = str(self.epoch) + super().__str__()

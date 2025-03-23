@@ -2,6 +2,7 @@ import importlib
 
 from ppSlib.arena_sync_model import ArenaSyncModel, asmObject, asmState
 from ppSlib.agent_direction_selector import random_direction_selector
+from ppSlib.asmStats import asmObjectStat
 from abc import abstractmethod, ABC
 from random import randint
 import json
@@ -193,7 +194,7 @@ class NonlivingAgent(Agent):
 # - can die
 # - has energy
 #
-class LivingAgent(Agent):
+class LivingAgent(Agent,asmObjectStat):
     ## accept a direction selector function
     ## - LivingAgent( select_direction=lambda surrounding: randint(1,9) if randint(1,10) > 7 else self.direction() )
     def __init__(self, **kwargs):
@@ -212,11 +213,19 @@ class LivingAgent(Agent):
         # else:
         #     self.select_direction_func_kwargs = { 'curr_dir': None, 'prob_change': 30 }
         #     self.direction_selector = random_direction_selector
-
+        kwargs['state_args'] = Agent.add_to_state_args({'age': 0}, **kwargs)
         super().__init__( **kwargs )
 
     # def select_direction(self, surrounding=None):
     #     return self.direction_selector(surrounding, **self.select_direction_func_kwargs)
+
+    def run_update(self, context=None):
+        super().run_update(context)
+        self.add2sattr('age', 1)
+
+    def stats(self):
+        return [self.energy(),self.getsattr('age'),self.direction()]
+    
 
     def do_action(self,action,action_args):
         if( action == "move" ):
@@ -285,6 +294,7 @@ class Prey(LivingAgent):
         self.arena.add_to_random_position(obj)
         if(self.log):
             self.log( "reborn" )
+
     
 class Glide(LivingAgent):
     def __init__(self, dir=8, **kwargs):

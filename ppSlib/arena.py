@@ -160,8 +160,13 @@ class Arena:
     # def json_deserialize(cls, data):    
     #     return cls.deserialize(json.loads(data))
 
-    def get_objects(self):
-        return [obj for row in self.grid for cell in row for obj in cell]
+    def get_objects(self, by_class=None):
+        """Get the list of objects in the arena."""
+        list = [obj for row in self.grid for cell in row for obj in cell]
+        if by_class is None:
+            return list
+        else:
+            return [obj for obj in list if isinstance(obj, by_class)]
 
     def get_pos_obj_list(self):
         # pos_obj_list = []

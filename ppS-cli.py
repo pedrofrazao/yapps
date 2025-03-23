@@ -72,6 +72,7 @@ def load_args():
     parser.add_argument('--epochs', type=int, help='Number of epochs to run', default=100)
     parser.add_argument('--slow', action='store_true', help='Run the simulation slowly', default=False)
     parser.add_argument('--interactive', action='store_true', help='Run the simulation interactively', default=False)
+    parser.add_argument('--batch', action='store_true', help='run without output', default=True)
     # parser.add_argument('-h', '--help', action='help', help='Show this help message and exit')
     args = parser.parse_args()
 
@@ -87,12 +88,22 @@ def main(stdscr, args):
 
     # arena2 = _load_demo_arena()
 
-    # Display the arena
-    stdscr.addstr(0, 0, str(arena))
-    stdscr.addstr(rows+2, 0, "====")
+    if stdscr is not None:
+        # Display the arena
+        stdscr.addstr(0, 0, str(arena))
+        stdscr.addstr(rows+2, 0, "====")
+    else:
+        print(arena)
 
     # Run the loop with curses
     loop(stdscr, arena, args.epochs, args)
+
+    if stdscr is None:
+        print(arena)
+        for i in arena.get_stats():
+            if i is not None:
+                print(",".join([ str(v) for v in i ]))
+        return
 
     height, width = stdscr.getmaxyx()
     stdscr.addstr(height - 1, 0, "Press 'q' to exit.")
@@ -112,9 +123,12 @@ def main(stdscr, args):
 
 
 def loop(stdscr, arena, steps=5, args=None):
-    num_rows, num_cols = stdscr.getmaxyx()
-    lwin = curses.newpad(num_rows*10, 255 )
-    c = None
+
+    if stdscr is not None:
+        ## init stdscr
+        num_rows, num_cols = stdscr.getmaxyx()
+        lwin = curses.newpad(num_rows*10, 255 )
+        c = None
 
     for i in range(steps):
         # Run a step in the arena
@@ -125,43 +139,54 @@ def loop(stdscr, arena, steps=5, args=None):
                 # msg.extend( [ f"{obj.nickname}-{m}" for m in obj.msg[-2:]] )
                 msg.extend( [ f"{obj.nickname}-{obj.info()}" ] )
 
-        # Clear the screen
-        stdscr.clear()
-        lwin.clear()
+        if stdscr is not None:
+            to_cont = stdscr_step(arena, stdscr, lwin, num_rows, num_cols, msg, args)
+            if to_cont is False:
+                break
 
-        # Display the arena
-        stdscr.addstr(0, 0, str(arena))
-        stdscr.addstr(rows+2, 0, "====")
 
-        for m in msg:
-            lwin.addstr(f"{m}\n")
-        # Refresh the screen to show the updated arena
-        stdscr.refresh()
-        # lwin.refresh(0,0, rows+3, 0, num_rows-(rows+2)-1, num_cols-1 )
-        lwin.refresh(0,0, rows+3, 0, num_rows-1, num_cols-1 )
+def stdscr_step(arena, stdscr, lwin, num_rows, num_cols, msg, args):
+    # Clear the screen
+    stdscr.clear()
+    lwin.clear()
 
-        # Wait for a short period to create a visual effect
-        if args.interactive is False:
-            if args.slow:
-                stdscr.timeout(1000)
-                c = stdscr.getch()
-                if c == -1:
-                    continue
-                elif c == ord('q'):
-                    break
-            continue
+    # Display the arena
+    stdscr.addstr(0, 0, str(arena))
+    stdscr.addstr(rows+2, 0, "====")
 
-        if( c is not None and c == ord('q') ):
-            break
-        elif( c is not None and c == ord('c') ):
-            stdscr.timeout(100)  # Set timeout for getch to 100 milliseconds
+    for m in msg:
+        lwin.addstr(f"{m}\n")
+    # Refresh the screen to show the updated arena
+    stdscr.refresh()
+    # lwin.refresh(0,0, rows+3, 0, num_rows-(rows+2)-1, num_cols-1 )
+    lwin.refresh(0,0, rows+3, 0, num_rows-1, num_cols-1 )
+
+    # Wait for a short period to create a visual effect
+    if args.interactive is False:
+        if args.slow:
+            stdscr.timeout(1000)
             c = stdscr.getch()
-        else:
-            stdscr.timeout(80000000)
-            c = stdscr.getch()
+            if c == -1:
+                return True
+            elif c == ord('q'):
+                return False
+        return True
+
+    if( c is not None and c == ord('q') ):
+        return False
+    elif( c is not None and c == ord('c') ):
+        stdscr.timeout(100)  # Set timeout for getch to 100 milliseconds
+        c = stdscr.getch()
+    else:
+        stdscr.timeout(80000000)
+        c = stdscr.getch()
         
 
 if __name__ == "__main__":
     args = load_args()
-    curses.wrapper(main, args)
+    if args.batch is False:
+        curses.wrapper(main, args)
+    else:
+        main(None, args)
+
 
