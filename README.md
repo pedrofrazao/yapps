@@ -6,9 +6,9 @@
 
 - [ ] test case with `be_test.py`
 
-python ppSlib/run_all_tests.py
+python3 ppSlib/run_all_tests.py
 
- 
+python3 -m unittest  discover 
 
 
 ## packages ##

@@ -9,7 +9,8 @@ dirname = os.path.dirname(__file__)
 sys.path.append(dirname)
 
 from ppSlib.arena_sync_model import ArenaSyncModel
-from ppSlib.agent import Agent, Carnivore, Prey, Block, Trap, LivingAgent
+from ppSlib.agent import Agent, Carnivore, Prey, Block, Trap, LivingAgent, Grass
+import ppSlib.agent as agent
 import datetime
 import argparse
 
@@ -35,7 +36,31 @@ def load_from_file( args ):
         return None
 
 
+def _load_demo_grass():
+    # Initialize the arena and objects
+    arena = ArenaSyncModel(16, 16, sync_model='Sync')
+    num_grass = 4
+    num_cows = 2
+
+    nearby=[]
+    for i in range(num_grass):
+        obj = Grass( state_args={ 'min_matetime':25, 'energy':1 }, arena=arena)
+        if( len(nearby) > 0 ):
+            x,y = nearby.pop()
+            arena.add_to_position(x, y, obj)
+        else:
+            arena.add_to_random_position(obj)
+            nearby = obj.see().find_empty_position()
+
+    for i in range(num_cows):
+        obj = agent.Cow(arena=arena, state_args={ 'energy':45})
+        arena.add_to_random_position(obj)
+
+    return arena
+
 def _load_demo_arena(_):
+    return _load_demo_grass()
+
     # Initialize the arena and objects
     arena = ArenaSyncModel(rows, cols, sync_model='Sync')
     num_traps = 5
@@ -72,9 +97,12 @@ def load_args():
     parser.add_argument('--epochs', type=int, help='Number of epochs to run', default=100)
     parser.add_argument('--slow', action='store_true', help='Run the simulation slowly', default=False)
     parser.add_argument('--interactive', action='store_true', help='Run the simulation interactively', default=False)
-    parser.add_argument('--batch', action='store_true', help='run without output', default=True)
+    parser.add_argument('--batch', action='store_true', help='run without output', default=True )
     # parser.add_argument('-h', '--help', action='help', help='Show this help message and exit')
     args = parser.parse_args()
+
+    if args.interactive is True or args.slow is True:
+        args.batch = False
 
     return args
 

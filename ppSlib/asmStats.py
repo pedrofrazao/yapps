@@ -1,5 +1,8 @@
 
 class asmObjectStat():
+    def __init__(self, ignore=False, **kwargs):
+        self.ignore = ignore
+
     def stats(self):
         return None
 
@@ -21,6 +24,8 @@ class asmStats():
         self._stats_data[self.step] = {}
         for obj in self.get_objects():
             if isinstance(obj, asmObjectStat):
+                if obj.ignore:
+                    continue
                 v = obj.stats()
                 if v is None:
                     continue

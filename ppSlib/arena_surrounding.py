@@ -19,7 +19,7 @@ class Surrounding:
         """Get the surrounding objects of the current position."""
         surrounding = set()
         empty_pos = set()
-        meta = []
+        meta = set()
         if self.length > self.arena.rows and self.length > self.arena.cols:
             # too lengthy
             self.length = max(self.arena.rows, self.arena.cols)
@@ -43,9 +43,9 @@ class Surrounding:
                     direction = self.direction_xy(x,y)
                     if( distance <= self.length ):
                         surrounding.add(o)
-                        meta.append( (o, distance, direction) )
+                        meta.add( (o, distance, direction) )
 
-        self.objects_meta = meta
+        self.objects_meta = list(meta)
         self.empty_pos = list(empty_pos)
         return list(surrounding)
 

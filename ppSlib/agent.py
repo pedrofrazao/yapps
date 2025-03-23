@@ -4,8 +4,7 @@ from ppSlib.arena_sync_model import ArenaSyncModel, asmObject, asmState
 from ppSlib.agent_direction_selector import random_direction_selector
 from ppSlib.asmStats import asmObjectStat
 from abc import abstractmethod, ABC
-from random import randint
-import json
+from random import randint, choice
 
 # ##
 # ## Agent State
@@ -95,9 +94,6 @@ class Agent(asmObject):
     def get_state(self):
         return self.asmstate
 
-    def epoch_tic(self):
-        self.add2sattr('energy', - self.getsattr('epoch_penalty') )
-
     def run_interaction(self, context=None):
         super().run_interaction(context)
         surroundings = self.see(self.asmstate)
@@ -105,7 +101,8 @@ class Agent(asmObject):
         self.do_action(action,args_action)
 
     def run_update(self, context=None):
-        self.epoch_tic()
+        self.add2sattr('energy', - self.getsattr('epoch_penalty') )
+        self.add2sattr('age', 1)
         super().run_update()
         if(self.energy() < 1):
             self.die()
@@ -126,7 +123,9 @@ class Agent(asmObject):
         return self.getsattr('direction')
     
     def see(self,state=None):
-        pass
+        x,y = self.x, self.y
+        see_length = self.getsattr('see_length',1)
+        return self.arena.get_pos_surrounding(x, y, see_length)
 
     def do_action(self,action,action_args):
         pass
@@ -136,6 +135,10 @@ class Agent(asmObject):
 
     def move(self, direction, distance=1):
         return self.arena.move_object_position(self, direction, distance)
+    
+    @classmethod
+    def _filter_surroundings(cls, surroundings, obj_class):
+        return [ (o,dr,ds) for o,dr,ds in surroundings if isinstance(o, obj_class) ]
    
     # def getsattr(self, attr):
     #     return self.state.getsattr(attr)
@@ -154,7 +157,7 @@ class Agent(asmObject):
 
     def info(self, class_name=False, multi_line=False):
         if( class_name is False and multi_line is False ):
-            return f"e{self.energy()} d{self.getsattr("direction")} - {self.msg[-1:]}"
+            return f"e{self.energy()} a{self.getsattr('age')} d{self.getsattr("direction",0)} - {self.msg[-1:]}"
         else:
             msg = f"{self.nickname}"
             if( class_name ):
@@ -215,13 +218,13 @@ class LivingAgent(Agent,asmObjectStat):
         #     self.direction_selector = random_direction_selector
         kwargs['state_args'] = Agent.add_to_state_args({'age': 0}, **kwargs)
         super().__init__( **kwargs )
+        asmObjectStat.__init__(self, **kwargs)
 
     # def select_direction(self, surrounding=None):
     #     return self.direction_selector(surrounding, **self.select_direction_func_kwargs)
 
     def run_update(self, context=None):
         super().run_update(context)
-        self.add2sattr('age', 1)
 
     def stats(self):
         return [self.energy(),self.getsattr('age'),self.direction()]
@@ -229,7 +232,8 @@ class LivingAgent(Agent,asmObjectStat):
 
     def do_action(self,action,action_args):
         if( action == "move" ):
-            return self.move(action_args['direction'], self.getsattr('move_distance') )
+            dir = action_args.get('direction', self._random_direction_selector())
+            return self.move(dir, self.getsattr('move_distance') )
         else:
             raise ValueError("Unknown action")
         
@@ -243,7 +247,7 @@ class LivingAgent(Agent,asmObjectStat):
     def action_recipient(self, action, from_agent=None):
         if('eat' == action):
             self.die()
-            self.add_msg( f"{from_agent.name} eaten" )
+            self.log( f"{from_agent.nickname} eaten" )
 
 class Block(NonlivingAgent):
     def __init__(self, **kwargs):
@@ -261,8 +265,8 @@ class Trap(NonlivingAgent):
         for obj,dr,ds in c:
             if( obj.id != self.id ):
                 obj.die()
-                self.add_msg( f"trap: {obj.name}" )
-                obj.add_msg( f"{obj.name} trapped")
+                self.log( f"trap: {obj.nickname}" )
+                obj.log( f"{obj.nickname} trapped")
 
 
 class Prey(LivingAgent):
@@ -362,10 +366,10 @@ class Predator(LivingAgent):
 
         target = action_args['agent']
         if( self.arena.distance_between_objects(self, target) > 1 ):
-            self.add_msg( f"too far - move to: {target.name}" )
+            self.log( f"too far - move to: {target.nickname}" )
         else:
             target.action_recipient('eat',from_agent=self)
-            self.add_msg( f"eat: {target.name}" )
+            self.log( f"eat: {target.nickname}" )
             self.add2sattr('energy', 10)
         
 
@@ -387,24 +391,95 @@ class Carnivore(Predator):
 #                 obj.add_msg( f"{obj.name} trapped")
 
 
-class Grass(NonlivingAgent):
+class Cow(LivingAgent):
     def __init__(self, **kwargs):
-        kwargs['state_args'] = Agent.add_to_state_args( { 'epoch_penalty': 0 }, **kwargs )
-        kwargs['priority'] = kwargs.get('priority', 1)
-        super().__init__( can_move=False, volume=1, **kwargs )
+        kwargs['state_args'] = Agent.add_to_state_args({ 'energy':20,
+                                                         'max_energy': 100,
+                                                         'direction': randint(1,9),
+                                                         'epoch_penalty': 1 }, **kwargs )
+        kwargs['priority'] = kwargs.get('priority', 5)
+        super().__init__( volume=33, **kwargs )
 
-    def run_interaction(self, context=None):
-        pass
+    def select_action(self, state, surroundings):
+        if( state.getsattr('energy') >= state.getsattr('max_energy') ):
+            return None, None
+        
+        grass = Agent._filter_surroundings(surroundings.sorted(), Grass)
+        if( len(grass) > 0 and grass[0][1] == 0 ):
+            return 'eat', { 'grass': grass[0][0] }
+        elif( len(grass) > 0 ):
+            self.setsattr('direction', grass[0][2])
+            return 'move', { 'direction': grass[0][2] }
+        else:
+            self._random_direction_selector()
+            return 'move', {}
 
-    def run_update(self, context=None):
-        pass
+    def do_action(self, action, action_args):
+        if action == 'eat':
+            target = action_args['grass']
+            target.action_recipient('eat', from_agent=self)
+            self.add2sattr('energy', 3)
+            self.log( f"eat: {target.nickname}" )
+        else:
+            super().do_action(action, action_args)
 
     def die(self):
         super().die()
-        obj = Grass( state_args={}, arena=self.arena)
-        self.arena.add_to_random_position(obj, empty=True)
+
+class Grass(LivingAgent):
+    def __init__(self, **kwargs):
+        ## no energy loss
+        kwargs['state_args'] = Agent.add_to_state_args({ 'volume':1, 'energy':1,
+                                                         'epoch_penalty': 0,'see_length':1,
+                                                         'min_matetime': 5,
+                                                         },
+                                                         **kwargs )
+        kwargs['priority'] = kwargs.get('priority', 100)
+        super().__init__( can_move=False, **kwargs )
+
+    def select_action(self, state, surroundings):
+        if( self.getsattr('age') % self.getsattr('min_matetime') != 0 ):
+            return None, None
+        pals = Agent._filter_surroundings(surroundings, self.__class__)
+        if(len(pals) > 1 and len(pals) <= 4):
+            # more than just me and some empty spaces
+            return 'mate', { 'pals': pals, 'surr': surroundings }
+        else:
+            return None, None
+        
+    def do_action(self, action, action_args):
+        if action != 'mate':
+            return
+        else:
+            # mate!
+            try:
+                x,y = choice( action_args['surr'].empty_pos )
+            except:
+                x,y = None, None
+            if( x is None ):
+                if(self.log):
+                    self.log( "mated fail, no space" )
+            else:
+                obj = self.grass_clone()
+                if( self.arena.add_to_position(x, y, obj) ):
+                    if(self.log):
+                        self.log( f"mated at age {self.getsattr('age')}" )
+                else:
+                    if(self.log):
+                        self.log( "mated fail, volume excess" )
+
+    def action_recipient(self, action, from_agent=None):
+        if('eat' == action):
+            self.die()
+            self.log( f"{from_agent.nickname} eaten" )
+
+    def grass_clone(self):
+        return Grass( state_args=self.get_obj_state(), arena=self.arena )
+
+    def die(self):
+        super().die()
         if(self.log):
-            self.log( "reborn" )
+            self.log( "died" )
 
 
 class PluginBaseAgent():

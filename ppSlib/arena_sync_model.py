@@ -84,7 +84,7 @@ class asmObject(ArenaObject,smRole):
         return self.asmstate.state
 
     def get_obj_state(self):
-        return self.asmstate.state.clone()
+        return self.asmstate.state.copy()
     
     def get_next_obj_state(self):
         return self.asmstate._next_state
@@ -108,7 +108,7 @@ class asmObject(ArenaObject,smRole):
 
     def add2sattr(self, attr, value):
         ns = self.asmstate.get_next_state()
-        ns[attr] = ns[attr] + value
+        ns[attr] = ns.get(attr,0) + value
 
     def run_interaction(self, context=None):
         pass
