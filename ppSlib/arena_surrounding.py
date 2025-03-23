@@ -17,8 +17,13 @@ class Surrounding:
 
     def _get_surrounding(self):
         """Get the surrounding objects of the current position."""
-        surrounding = []
+        surrounding = set()
+        empty_pos = set()
         meta = []
+        if self.length > self.arena.rows and self.length > self.arena.cols:
+            # too lengthy
+            self.length = max(self.arena.rows, self.arena.cols)
+
         for x in range( self.x - self.length, self.x + self.length +1 ):
             for y in range( self.y - self.length, self.y + self.length +1 ):
 
@@ -30,18 +35,19 @@ class Surrounding:
                 objs = self.arena.get_position(px, py)
                 if( len(objs) == 0 ):
                     # empty position
-                    self.empty_pos.append((px,py))
+                    empty_pos.add((px, py))
                     continue
 
                 for o in objs:
                     distance = self.distance_xy(x,y)
                     direction = self.direction_xy(x,y)
                     if( distance <= self.length ):
-                        surrounding.append(o)
+                        surrounding.add(o)
                         meta.append( (o, distance, direction) )
 
         self.objects_meta = meta
-        return surrounding
+        self.empty_pos = list(empty_pos)
+        return list(surrounding)
 
     def _all_positions_at_distance(self):
         """Get all positions at a certain distance from a point."""

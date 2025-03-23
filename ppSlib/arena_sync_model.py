@@ -98,9 +98,9 @@ class asmObject(ArenaObject,smRole):
     def get_priority(self):
         return self.priority
 
-    def getsattr(self, attr):
+    def getsattr(self, attr, default=None):
         # s = self.asmstate.get_curr_state()
-        return self.asmstate.getsattr(attr, None)
+        return self.asmstate.getsattr(attr, default)
     
     def setsattr(self, attr, value):
         ns = self.asmstate.get_next_state()

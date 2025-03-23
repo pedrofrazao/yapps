@@ -370,5 +370,24 @@ class TestArenaSurroundingSort(unittest.TestCase):
         self.assertEqual(4, len(so))
 
 
+class TestArenaSurrounSmall(unittest.TestCase):
+    def setUp(self):
+        self.arena = Arena(5, 5, arena_type='torus')
+
+    def test_too_large_length(self):
+        surrounding = Surrounding(self.arena, 0, 0, length=4)
+        empty = surrounding.find_empty_position()
+        self.assertEqual(25, len(empty))
+        c=0
+        for x,y in empty:
+            o1 = ArenaObject()
+            self.arena.add_to_position(x,y,o1)
+            c += 1
+            e = Surrounding(self.arena, 0, 0, length=4).find_empty_position()
+            self.assertEqual(25-c, len(e))
+            
+        e = Surrounding(self.arena, 0, 0, length=4).find_empty_position()
+        self.assertEqual(0, len(e))
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
