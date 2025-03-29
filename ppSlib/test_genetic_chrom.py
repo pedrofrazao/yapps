@@ -63,5 +63,21 @@ class TestChromosome(unittest.TestCase):
                 c += 1
             self.assertLessEqual(c, 25, "Too many 'non' mutations")
 
+class TestChromosomeNum(unittest.TestCase):
+    def setUp(self):
+        self.valid_values = [
+            # action selection genes
+            ('rest', [0, 5, 10], "incremental utility for rest"),
+            # action params genes
+            ("change_dir", [5, 25, 50, 75 ,95], "prob in % to change direction"),
+        ]
+        self.alleles = Alleles(self.valid_values)
+        self.chromosome = Chromosome( self.alleles, {"rest": 0, "change_dir": 50} )
+
+    def test_getvalues(self):
+        self.assertEqual(self.chromosome.gene_value("rest"), 0)
+        self.assertEqual(self.chromosome.gene_value("change_dir"), 50)
+
+
 if __name__ == "__main__":
     unittest.main()

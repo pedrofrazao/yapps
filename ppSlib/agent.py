@@ -404,12 +404,12 @@ class Cow(LivingAgent):
         if( state.getsattr('energy') >= state.getsattr('max_energy') ):
             return None, None
         
-        grass = Agent._filter_surroundings(surroundings.sorted(), Grass)
-        if( len(grass) > 0 and grass[0][1] == 0 ):
-            return 'eat', { 'grass': grass[0][0] }
-        elif( len(grass) > 0 ):
-            self.setsattr('direction', grass[0][2])
-            return 'move', { 'direction': grass[0][2] }
+        cow = Agent._filter_surroundings(surroundings.sorted(), Cow)
+        if( len(cow) > 0 and cow[0][1] == 0 ):
+            return 'eat', { 'cow': cow[0][0] }
+        elif( len(cow) > 0 ):
+            self.setsattr('direction', cow[0][2])
+            return 'move', { 'direction': cow[0][2] }
         else:
             self._random_direction_selector()
             return 'move', {}
