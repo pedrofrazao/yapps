@@ -46,6 +46,7 @@ class asmState():
     def __init__(self, state):
         self.state = state
         self._next_state = None
+        self._tmp = {}
 
     def get_curr_state(self):
         return self.state
@@ -58,11 +59,31 @@ class asmState():
     def getsattr(self, attr, default=None):
         return self.state.get(attr, default)
 
-    def switch_to_next_state(self):
-        if self._next_state is None:
-            return
+    def t_set_attr(self, attr, value):
+        """temporary set attribute"""
+        ns = self.get_next_state()
+        if attr in ns:
+            ns[attr] = value
         else:
+            self._tmp[attr] = value
+        return
+    
+    def t_get_attr(self, attr, default=None):
+        """temporary get attribute"""
+        v = self._tmp.get(attr, None)
+        if v is None:
+            ns = self.get_next_state()
+            v = ns.get(attr, None)
+        if v is None:
+            v = self.getsattr(attr, default)
+        return v
+
+    def switch_to_next_state(self):
+        if self._next_state is not None:
             self.state = self._next_state
+            self._next_state = None
+        self._tmp = {}
+        return
 
     def __str__(self):
         return str(self.state)
@@ -111,7 +132,7 @@ class asmObject(ArenaObject,smRole):
         ns[attr] = ns.get(attr,0) + value
 
     def run_interaction(self, context=None):
-        pass
+        self.empty_msg()
     #     if(self.log):
     #         self.log( f"interaction: {self.name}" )
 
