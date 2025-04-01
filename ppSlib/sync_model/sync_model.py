@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 
-def sync_model_factory(model_type):
+def sync_model_factory(model_type="OASCycl"):
     if model_type == "Sync":
+        raise NotImplementedError("Sorry, but the 'Sync' model is not implemented")
         return Sync()
     elif model_type == "OASCycl":
         return OASCycl()

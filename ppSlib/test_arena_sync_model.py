@@ -11,7 +11,7 @@ from ppSlib.agent import Agent, Carnivore, Prey, Block, Trap, LivingAgent
 
 class TestArenaSyncModel(unittest.TestCase):
     def setUp(self):
-        self.arena = ArenaSyncModel(5, 5, sync_model='Sync')
+        self.arena = ArenaSyncModel(5, 5)
         obj1 = asmObject("obj1", {}, 10)
         obj2 = asmObject("obj2", {}, 10)
         self.arena.add_to_position(0, 0, obj1)
@@ -62,7 +62,7 @@ class agentB(Agent):
 
 class TestArenaSyncModelUpdate(unittest.TestCase):
     def setUp(self):
-        self.arena = ArenaSyncModel(5, 5, sync_model='Sync')
+        self.arena = ArenaSyncModel(5, 5)
         obj1 = agentA("obj1", { 'e': 1, 'f': 0 }, 10)
         obj2 = agentA("obj2", { 'e': 2, 'f': 0 }, 10)
         self.arena.add_to_position(0, 0, obj1)
@@ -91,7 +91,7 @@ class TestArenaSyncModelUpdate(unittest.TestCase):
 
 class TestArenaRun(unittest.TestCase):
     def setUp(self):
-        self.arena = ArenaSyncModel(5, 5, sync_model='Sync')
+        self.arena = ArenaSyncModel(5, 5)
         obj1 = agentB( state_args={ 'energy':10, 'direction':5}, arena=self.arena)
         self.arena.add_to_random_position(obj1)
 
