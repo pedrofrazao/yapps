@@ -119,6 +119,7 @@ class TestActionList2(unittest.TestCase):
         ## try new selection
         utilities = selector.calculate_utility(state=state)
         assert len(utilities) == 2
+        
         (a, u) = utilities.get_top_action_list()[0]
         assert a.name == 'move'
         a.run_action(state)

@@ -3,6 +3,7 @@ import importlib
 from ppSlib.arena_sync_model import ArenaSyncModel, asmObject, asmState
 from ppSlib.agent_direction_selector import random_direction_selector
 from ppSlib.asmStats import asmObjectStat
+from ppSlib.action import action, move, action_selection
 from abc import abstractmethod, ABC
 from random import randint, choice
 
@@ -60,7 +61,16 @@ from random import randint, choice
 ## Agent
 ##
 class Agent(asmObject):
+    """
+    run_interaction() - run the interaction with the arena
+      - see() - get the surroundings
+      - select_action() - select the action to do
+      - do_action() - do the action
 
+    run_update() - run the update of the agent
+      - change the state of the agent
+      - if energy < 1, die()
+    """
     def __init__(self, name=None, **kwargs):
         state = None 
         if 'state' in kwargs:
@@ -74,14 +84,6 @@ class Agent(asmObject):
 
         super().__init__( name, state, **kwargs )
 
-    # def run_interaction(self):
-    #     ## select action
-    #     pass
-    #     ## do action
-    #     pass
-
-    # def run_update(self):
-    #     pass
 
     @staticmethod
     def add_to_state_args( s_args, **kwargs ):
@@ -94,6 +96,7 @@ class Agent(asmObject):
     def get_state(self):
         return self.asmstate
 
+
     def run_interaction(self, context=None):
         super().run_interaction(context)
         surroundings = self.see(self.asmstate)
@@ -101,6 +104,7 @@ class Agent(asmObject):
         self.do_action(action,args_action)
 
     def run_update(self, context=None):
+        self._move_update()
         self.add2sattr('energy', - self.getsattr('epoch_penalty') )
         self.add2sattr('age', 1)
         super().run_update()
@@ -130,32 +134,29 @@ class Agent(asmObject):
     def do_action(self,action,action_args):
         pass
 
-    def action_recipient(self,action,from_agent=None):
-        pass
+    # def action_recipient(self,action,from_agent=None):
+    #     pass
 
     def move(self, direction, distance=1):
-        return self.arena.move_object_position(self, direction, distance)
+        if( direction is not None ):
+            self.asmstate.t_set_attr('_arena_move', (direction,distance) )
     
+    def _move_update(self):
+        params = self.asmstate.t_get_attr('_arena_move', None)
+        if params is not None:
+            direction,distance = params
+            return self.arena.move_object_position(self, direction, distance)
+
     @classmethod
     def _filter_surroundings(cls, surroundings, obj_class):
         return [ (o,dr,ds) for o,dr,ds in surroundings if isinstance(o, obj_class) ]
-   
-    # def getsattr(self, attr):
-    #     return self.state.getsattr(attr)
-    
-    # def setsattr(self, attr, value):
-    #     self.state.setsattr(attr, value)
-
-    # def add2sattr(self, attr, value):
-    #     self.state.add2sattr(attr, value)
-
-    # def get_next_obj_state(self):
-    #     return self.state.get_next_state()
 
     def __str__(self):
         return f"{self.nickname}"
 
-    def info(self, class_name=False, multi_line=False):
+    def info(self, class_name=False, multi_line=False, onlywithmessage=False):
+        if( onlywithmessage and len(self.msg) == 0 ):
+            return None
         if( class_name is False and multi_line is False ):
             return f"e{self.energy()} a{self.getsattr('age')} d{self.getsattr("direction",0)} - {self.msg[-1:]}"
         else:
@@ -176,6 +177,11 @@ class Agent(asmObject):
 # - no dying
 #
 class NonlivingAgent(Agent):
+    """
+    no run_interaction
+    no run_update
+    no die
+    """
     def __init__(self, **kwargs):
         kwargs['state_args'] = { 'epoch_penalty': 0 }
         kwargs['can_move'] = kwargs.get('can_move', False)
@@ -198,28 +204,32 @@ class NonlivingAgent(Agent):
 # - has energy
 #
 class LivingAgent(Agent,asmObjectStat):
+    """
+    added state_args:
+    - age
+    - epoch_penalty
+    - move_distance
+    """
     ## accept a direction selector function
     ## - LivingAgent( select_direction=lambda surrounding: randint(1,9) if randint(1,10) > 7 else self.direction() )
-    def __init__(self, **kwargs):
+    def __init__(self, dir=5, **kwargs):
+        kwargs['state_args'] = Agent.add_to_state_args( { 'see_length': 0 }, **kwargs )
         kwargs['state_args'] = Agent.add_to_state_args( { 'epoch_penalty': 1 }, **kwargs )
         kwargs['state_args'] = Agent.add_to_state_args( { 'move_distance': 1 }, **kwargs )
-        # if 'select_direction' in kwargs:
-        #     if callable(kwargs['select_direction']):
-        #         self.direction_selector = kwargs['select_direction']
-        #     elif isinstance(kwargs['select_direction'], tuple):
-        #         self.select_direction_func_name = kwargs['select_direction'][0]
-        #         self.select_direction_func_kwargs = kwargs['select_direction'][1]
-        #         self.direction_selector = globals().get(self.select_direction_func_name)
-        #     else:
-        #         raise ValueError("select_direction must be callable")
-        #     del kwargs['select_direction']
-        # else:
-        #     self.select_direction_func_kwargs = { 'curr_dir': None, 'prob_change': 30 }
-        #     self.direction_selector = random_direction_selector
         kwargs['state_args'] = Agent.add_to_state_args({'age': 0}, **kwargs)
+        kwargs['state_args'] = Agent.add_to_state_args( { 'direction': dir, 'epoch_penalty': 0 }, **kwargs )
+
+        if 'actions' in kwargs:
+            actions = kwargs['actions']
+            del kwargs['actions']
+        else:
+            actions = []
+        self._action_selector = action_selection( actions=actions )
+
         super().__init__( **kwargs )
         asmObjectStat.__init__(self, **kwargs)
-
+        
+        
     # def select_direction(self, surrounding=None):
     #     return self.direction_selector(surrounding, **self.select_direction_func_kwargs)
 
@@ -230,12 +240,14 @@ class LivingAgent(Agent,asmObjectStat):
         return [self.energy(),self.getsattr('age'),self.direction()]
     
 
-    def do_action(self,action,action_args):
-        if( action == "move" ):
-            dir = action_args.get('direction', self._random_direction_selector())
-            return self.move(dir, self.getsattr('move_distance') )
+    def do_action(self,oaction,action_args):
+        if( isinstance( oaction, move ) ):
+            params = oaction.run_action(self.get_state())
+            self.move( *params )
+        elif( isinstance( oaction, action ) ):
+            oaction.run_action(self.get_state())
         else:
-            raise ValueError("Unknown action")
+            raise ValueError("Unknown action: " + str(oaction))
         
     def _random_direction_selector(self, prob_change=30):
         if( randint(1,100) < prob_change ):
@@ -249,7 +261,20 @@ class LivingAgent(Agent,asmObjectStat):
             self.die()
             self.log( f"{from_agent.nickname} eaten" )
 
+
+    def select_action(self,state,surroundings):
+        utilities = self._action_selector.calculate_utility(state=state)
+        (a, u) = utilities.get_top_action_list()[0]
+        state = self.get_state()
+        state.t_set_attr('surroundings', surroundings)
+        return a, state
+
 class Block(NonlivingAgent):
+    """
+    - priority = 10
+    example:
+    - Block( name="Block", x=0, y=0, arena=arena )
+    """
     def __init__(self, **kwargs):
         super().__init__( can_move=False, volume=100,priority=10, **kwargs )
 
@@ -273,22 +298,11 @@ class Prey(LivingAgent):
     def __init__(self, **kwargs):
         kwargs['state_args'] = Agent.add_to_state_args( { 'energy':20, 'epoch_penalty': 0 }, **kwargs )
         kwargs['priority'] = kwargs.get('priority', 1)
+        if 'actions' not in kwargs:
+            kwargs['actions'] = [ move({ 'distance': 1, 'energy_penalty': 0, 'change_direction_prob': 0}) ]
+       
         super().__init__( volume=33, **kwargs )
 
-    # def run_interaction(self):
-    #     super().run_interaction()
-    #     # c = self.arena.get_pos_surrounding(self.x, self.y)
-    #     ## change direction?
-    #     self.setsattr( 'direction', self.select_direction() )
-
-    #     self.arena.move_object_position(self, self.getsattr('direction'), 1)
-    def see(self,_):
-        return None
-    
-    def select_action(self, state, surroundings):
-        dir = randint(1,9)
-        self.setsattr('direction', dir)
-        return "move", { 'direction': dir }
 
     # override the die method to generate a new prey on a random position
     def die(self):
@@ -303,12 +317,13 @@ class Prey(LivingAgent):
 class Glide(LivingAgent):
     def __init__(self, dir=8, **kwargs):
         self.dir = dir
-        kwargs['state_args'] = Agent.add_to_state_args( { 'epoch_penalty': 1 }, **kwargs )
+        kwargs['state_args'] = Agent.add_to_state_args( { 'direction': dir, 'epoch_penalty': 0 }, **kwargs )
         kwargs['priority'] = kwargs.get('priority', 1)
+
+        kwargs['actions'] = [ move({ 'distance': 1, 'energy_penalty': 0, 'change_direction_prob': 0}) ]
         super().__init__( volume=33, **kwargs )
-    
-    def select_action(self, state, surroundings):
-        return 'move', { 'direction': self.dir }
+
+
 
 class Predator(LivingAgent):
     def __init__(self, see_length=2, **kwargs):
@@ -404,12 +419,12 @@ class Cow(LivingAgent):
         if( state.getsattr('energy') >= state.getsattr('max_energy') ):
             return None, None
         
-        cow = Agent._filter_surroundings(surroundings.sorted(), Cow)
-        if( len(cow) > 0 and cow[0][1] == 0 ):
-            return 'eat', { 'cow': cow[0][0] }
-        elif( len(cow) > 0 ):
-            self.setsattr('direction', cow[0][2])
-            return 'move', { 'direction': cow[0][2] }
+        grass = Agent._filter_surroundings(surroundings.sorted(), Grass)
+        if( len(grass) > 0 and grass[0][1] == 0 ):
+            return 'eat', { 'grass': grass[0][0] }
+        elif( len(grass) > 0 ):
+            self.setsattr('direction', grass[0][2])
+            return 'move', { 'direction': grass[0][2] }
         else:
             self._random_direction_selector()
             return 'move', {}
@@ -434,7 +449,7 @@ class Grass(LivingAgent):
                                                          'min_matetime': 5,
                                                          },
                                                          **kwargs )
-        kwargs['priority'] = kwargs.get('priority', 100)
+        kwargs['priority'] = kwargs.get('priority', 1)
         super().__init__( can_move=False, **kwargs )
 
     def select_action(self, state, surroundings):
@@ -481,6 +496,45 @@ class Grass(LivingAgent):
         if(self.log):
             self.log( "died" )
 
+class Wolf(LivingAgent):
+    def __init__(self, **kwargs):
+        kwargs['state_args'] = Agent.add_to_state_args({ 'energy':20,
+                                                         'max_energy': 100,
+                                                         'direction': randint(1,9),
+                                                         'see_length':2,
+                                                         'epoch_penalty': 1 }, **kwargs )
+        kwargs['priority'] = kwargs.get('priority', 10)
+        super().__init__( volume=55, **kwargs )
+
+    def select_action(self, state, surroundings):
+        if( state.getsattr('energy') >= state.getsattr('max_energy') ):
+            return None, None
+        
+        cow = Agent._filter_surroundings(surroundings.sorted(), Cow)
+        if( len(cow) > 0 and cow[0][1] <= 1 ):
+            self.setsattr('direction', cow[0][2])
+            return 'eat', { 'cow': cow[0][0], 'dist': cow[0][1] }
+        elif( len(cow) > 1 ):
+            self.setsattr('direction', cow[0][2])
+            return 'move', { 'direction': cow[0][2] }
+        else:
+            self._random_direction_selector()
+            return 'move', {}
+
+    def do_action(self, action, action_args):
+        if action == 'eat':
+            target = action_args['cow']
+            target.action_recipient('eat', from_agent=self)
+            self.add2sattr('energy', 3)
+            self.log( f"eat: {target.nickname}" )
+            if( action_args['dist'] > 0 ):
+                action = 'move'
+                action_args = { 'direction': self.getsattr('direction') }
+                super().do_action(action, action_args)
+        else:
+            super().do_action(action, action_args)
+
+
 
 class PluginBaseAgent():
     @classmethod
@@ -520,3 +574,13 @@ class PluginBaseAgent():
     # @abstractmethod
     # def run_update(self):
     #     pass
+
+
+class GABaseAgent():
+    def __init__(self, **kwargs):
+        # read GA params
+        self.chromo
+        self.state['energy'] = kwargs.get('energy', 100)
+        self.state['age'] = kwargs.get('age', 0)
+        self.state['epoch_penalty'] = kwargs.get('epoch_penalty', 1)
+        self.state['direction'] = kwargs.get('direction', 5)

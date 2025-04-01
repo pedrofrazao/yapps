@@ -117,7 +117,7 @@ class action:
     def run_action(self, state):
         """run the action"""
         self.__action_run_success(state)
-        self.action_self_effect(state)
+        return self.action_self_effect(state)
 
 
     def action_self_effect(self,state):
@@ -187,9 +187,9 @@ class move(action):
             new_direction = choice([1,2,3,4,6,7,8,9])
             state.t_set_attr('direction', new_direction)
         state.t_set_attr('move_distance', self.params['distance'])
-            
+        return [ state.t_get_attr('direction', None), self.params['distance'] ]
 
-class eat(action):
+class eat(move):
     """
     __init__( params = { 'max_distance': 1, 'energy_penalty': 2, 'energy_recover': 10}
     """
@@ -215,5 +215,5 @@ class eat(action):
                 ## set the target to 0
                 t.t_set_attr('energy',0)
 
-        return
+        return [ None, None]
     

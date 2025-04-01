@@ -14,7 +14,7 @@ class ArenaSyncModel(Arena,asmStats):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        stype = kwargs.get('sync_model', 'Sync')
+        stype = kwargs.get('sync_model', 'OASCycl')
         self.sync_model = SyncModelPrrtList(sync_model=stype)
         self.epoch = 0
         asmStats.__init__(self,**kwargs)

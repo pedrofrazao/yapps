@@ -82,6 +82,9 @@ class ArenaObject:
     def __repr__(self):
         return f"ArenaObject(name={self.name})"
     
+    def _str_arena(self):
+        return str(self.arena)
+
     def __str__(self):
         return ','.join( [ self.name, self.x, self.y, self.volume, self.can_move ] )
 
@@ -89,6 +92,9 @@ class ArenaObject:
     def add_msg(self, msg):
         self.msg.append(msg)
         self.msg = self.msg[-self.max_msg:]
+
+    def empty_msg(self):
+        self.msg = []
 
     def info(self, end="\n"):
         if( self.can_move is False ):
@@ -327,7 +333,8 @@ class Arena:
                 if c == 0:
                     c = "__"
                 else:
-                    c = str(cell[0])
+                    sorted(cell,key=lambda x: x.priority)
+                    # c = str(cell[0])
                 # c = "_" if c == 0 else str(c)
                 row_str = f"{row_str} {c}"
             arena_str += row_str + "\n"
