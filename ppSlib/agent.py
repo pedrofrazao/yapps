@@ -4,6 +4,7 @@ from ppSlib.arena_sync_model import ArenaSyncModel, asmObject, asmState
 from ppSlib.agent_direction_selector import random_direction_selector
 from ppSlib.asmStats import asmObjectStat
 from ppSlib.action import action, move, action_selection
+from ppSlib.genetic import Chromosome
 from abc import abstractmethod, ABC
 from random import randint, choice
 
@@ -226,8 +227,16 @@ class LivingAgent(Agent,asmObjectStat):
             actions = []
         self._action_selector = action_selection( actions=actions )
 
+        if 'chromosome' in kwargs:
+            self.chromosome = Chromosome( kwargs['chromosome'] )
+            del kwargs['chromosome']
+
         super().__init__( **kwargs )
         asmObjectStat.__init__(self, **kwargs)
+
+        ## apply the chromosome to the state
+        if( hasattr(self, 'chromosome') ):
+            self.chromosome.apply_to_state(self.get_state())
         
         
     # def select_direction(self, surrounding=None):
@@ -269,6 +278,7 @@ class LivingAgent(Agent,asmObjectStat):
         state.t_set_attr('surroundings', surroundings)
         return a, state
 
+
 class Block(NonlivingAgent):
     """
     - priority = 10
@@ -300,7 +310,7 @@ class Prey(LivingAgent):
         kwargs['priority'] = kwargs.get('priority', 1)
         if 'actions' not in kwargs:
             kwargs['actions'] = [ move({ 'distance': 1, 'energy_penalty': 0, 'change_direction_prob': 0}) ]
-       
+
         super().__init__( volume=33, **kwargs )
 
 
@@ -317,7 +327,7 @@ class Prey(LivingAgent):
 class Glide(LivingAgent):
     def __init__(self, dir=8, **kwargs):
         self.dir = dir
-        kwargs['state_args'] = Agent.add_to_state_args( { 'direction': dir, 'epoch_penalty': 0 }, **kwargs )
+        kwargs['state_args'] = Agent.add_to_state_args( { 'energy':10, 'direction': dir, 'epoch_penalty': 0 }, **kwargs )
         kwargs['priority'] = kwargs.get('priority', 1)
 
         kwargs['actions'] = [ move({ 'distance': 1, 'energy_penalty': 0, 'change_direction_prob': 0}) ]

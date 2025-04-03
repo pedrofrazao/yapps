@@ -63,17 +63,23 @@ class Alleles:
 
 class Chromosome:
     def __init__(self, alleles, values=None, mutation_rate=0.001):
-        self.alleles = alleles
+        if isinstance(alleles, Alleles):
+            self.alleles = alleles
+        elif isinstance(alleles, list):
+            self.alleles = Alleles(alleles)
+        else:
+            raise ValueError("Alleles must be a list or an Alleles instance")
+
         self.genes = {}
         if values:
             for n,v in values.items():
-                if not alleles._valid_names(n):
+                if not self.alleles._valid_names(n):
                     raise ValueError(f"Allele {n} not found")
-                if not alleles._valid_value(n, v):
+                if not self.alleles._valid_value(n, v):
                     raise ValueError(f"Value {v} not valid for allele {n}")
                 self.genes[n] = v
         else:
-            for a in alleles:
+            for a in self.alleles:
                 self.genes[a] = self.alleles.random_value_for(a)
 
     def __str__(self):

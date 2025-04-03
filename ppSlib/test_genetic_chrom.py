@@ -88,12 +88,13 @@ class TestChromosomeOnDict(unittest.TestCase):
             "energy": 100,
         }
 
-        self.valid_values = [
+        alleles=[
             ('rest', [0, 5, 10], "incremental utility for rest"),
             ("change_direction_prob", [5, 25, 50, 75 ,95], "prob in % to change direction"),
         ]
-        self.alleles = Alleles(self.valid_values)
-        self.chromosome = Chromosome( self.alleles, {"rest": 0, "change_direction_prob": 50} )
+        # self.valid_values = alleles
+        # self.alleles = Alleles(self.valid_values)
+        self.chromosome = Chromosome( alleles, {"rest": 0, "change_direction_prob": 50} )
 
     def test_apply_chrom_on_dict(self):
         self.chromosome.phenotype(self.dict)

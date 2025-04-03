@@ -334,8 +334,8 @@ class Arena:
                     c = "__"
                 else:
                     sorted(cell,key=lambda x: x.priority)
-                    # c = str(cell[0])
-                # c = "_" if c == 0 else str(c)
+                    c = str(cell[0])
+                c = "_" if c == 0 else str(c)
                 row_str = f"{row_str} {c}"
             arena_str += row_str + "\n"
         return arena_str

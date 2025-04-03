@@ -66,7 +66,7 @@ class TestAction(unittest.TestCase):
 
         # Test utility calculation
         utilities = selector.calculate_utility(state=state)
-        print( ">> "+ str(utilities) )
+        # print( ">> "+ str(utilities) )
         assert len(utilities) == 2
         uu = [ u for u in utilities ]
         assert uu[0][0].name == 'move'

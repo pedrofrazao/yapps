@@ -128,6 +128,28 @@ class MatrixGUI:
         self._draw_matrix_borders()
         self._draw_matrix_cells()
 
+    def draw_matrix_new(self):
+        if( self.arena is None ):
+            return
+        
+        if(self.arena_canvas is None):
+            ## init canvas
+            self._init_arena_canvas()
+
+    def _init_arena_canvas(self):
+        # Create a frame for the pygame display
+        self.pygame_frame = tk.Frame(self.root, width=WIDTH, height=HEIGHT)
+        self.pygame_frame.pack()
+        WIDTH, HEIGHT = self.arena
+        os.environ['SDL_WINDOWID'] = str(self.pygame_frame.winfo_id())
+        os.environ['SDL_VIDEODRIVER'] = 'x11'
+        pygame.init()
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        pygame.display.set_caption("Life Game")
+        self.clock = pygame.time.Clock()
+        self.run_game()
+
+
     def random_color(self):
         return "#{:06x}".format(random.randint(0, 0xFFFFFF))
 
@@ -211,8 +233,11 @@ class MatrixGUI:
 
     def _msg(self):
         self.log_message( f"## Epoch: {self.arena.epoch} ##" )
-        for obj in sorted(self.arena.get_objects(), key=lambda x: x.nickname):
+        for obj in sorted(self.arena.get_objects(), key=lambda x: x.nickname):            
             if( isinstance(obj, LivingAgent) ):
+                str = obj.info( onlywithmessage=True )
+                if str is None:
+                    continue
                 self.log_message( f"{obj.nickname}-{obj.info()}" )
 
     def run(self):
@@ -244,6 +269,6 @@ class MatrixGUI:
 
     def demo_config(self):
         # arena = ppSlib.arena_demo.arena_demo( self.rows, self.cols )
-        arena = arena_demo.load_demo( case = 1 )
+        arena = arena_demo.load_demo( case = 0 )
         self.arena = arena
         self.update_display()

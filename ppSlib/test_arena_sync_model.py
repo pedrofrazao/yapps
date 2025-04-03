@@ -99,11 +99,11 @@ class TestArenaRun(unittest.TestCase):
         self.assertEqual( 1, self.arena.num_objects )
         o = self.arena.get_objects()[0]
         y = o.y  # store y position
-        print( f"o: {o.nickname}: {o.x},{o.y} - {o.direction()}" )
+        # print( f"o: {o.nickname}: {o.x},{o.y} - {o.direction()}" )
         self.arena.run_step()
-        print("after run_step")
+        # print("after run_step")
         self.assertEqual( 6, o.direction() )
-        print( f"o: {o.nickname}: {o.x},{o.y} - {o.direction()}" )
+        # print( f"o: {o.nickname}: {o.x},{o.y} - {o.direction()}" )
         self.assertNotEqual( y, o.y, "move dir 6" )
         self.assertEqual( 1, self.arena.num_objects )
 
@@ -113,14 +113,14 @@ class TestArenaRun(unittest.TestCase):
         x,y = o.x, o.y
         for i in range(5):
             self.arena.run_step()
-            print( f">> { o.get_state() }" )
+            # print( f">> { o.get_state() }" )
             try:
                 self.assertEqual( 6, o.direction() )
                 self.assertNotEqual( (x,y), (o.x, o.y), "move" )
                 x,y = o.x, o.y
             except AssertionError as e:
                 # print(f"Assertion failed: {e}")
-                print( f">> { o.get_state() }" )
+                # print( f">> { o.get_state() }" )
                 raise AssertionError(f"Assertion failed: {e}. Internal state of 'o': {o.get_state()}")
             self.assertEqual( 1, self.arena.num_objects )
 
