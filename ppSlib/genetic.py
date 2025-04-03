@@ -10,17 +10,42 @@ class Alleles:
     ## values with a list of tuples with: (name, value, description)
     ##
     def __init__(self, values):
+        self.aformat = None
         if not isinstance(values, list):
             raise ValueError("Values must be a list of tuples")
         for v in values:
             if not isinstance(v, tuple) or len(v) != 3:
                 raise ValueError("Each value must be a tuple with three elements: (name, values list, description)")
-            if not isinstance(v[0], str) or not isinstance(v[1], list) or not isinstance(v[2], str):
+            if isinstance(v[0], str) and isinstance(v[1], dict) and isinstance(v[2], str):
+                if self.aformat is None:
+                    self.aformat = 'dict'
+                    continue
+                if self.aformat == 'dict':
+                    continue
+                else:
+                    raise ValueError("All values must be of the same type")
+            if isinstance(v[0], str) and isinstance(v[1], list) and isinstance(v[2], str):
+                if self.aformat is None:
+                    self.aformat = 'list'
+                    continue
+                if self.aformat == 'list':
+                    continue
+                else:
+                    raise ValueError("All values must be of the same type")
+            else:
                 raise ValueError("Tuple elements must be (str, list, str)")
         
         self.alleles = {}
-        for v in values:
-            self.alleles[v[0]] = { 'name': v[0], 'value': v[1], 'description': v[2] }
+        if self.aformat == 'list':
+            for v in values:
+                self.alleles[v[0]] = { 'name': v[0], 'value': v[1], 'description': v[2] }
+        elif self.aformat == 'dict':
+            for v in values:
+                self.alleles[v[0]] = { 'name': v[0], 'value': list(v[1].keys()), 'description': v[2] }
+                self.alleles[v[0]]['phenotype'] = v[1]
+        else:
+            raise ValueError("Alleles format not recognized")
+
 
     def random_value_for(self, name):
         if name not in self.alleles:
@@ -71,3 +96,10 @@ class Chromosome:
                 self.genes[a] = self.alleles.random_value_for(a)
         return self
     
+    def phenotype(self, d=None):
+        if d is None:
+            d = {}
+        
+        for a in self.genes.keys():
+            d[a] = self.genes[a]
+        return d

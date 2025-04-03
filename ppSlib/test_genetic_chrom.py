@@ -79,5 +79,36 @@ class TestChromosomeNum(unittest.TestCase):
         self.assertEqual(self.chromosome.gene_value("change_dir"), 50)
 
 
+class TestChromosomeOnDict(unittest.TestCase):
+    def setUp(self):
+        self.dict = {
+            "rest": 0,
+            "change_direction_prob": 5,
+            "direction": 5,
+            "energy": 100,
+        }
+
+        self.valid_values = [
+            ('rest', [0, 5, 10], "incremental utility for rest"),
+            ("change_direction_prob", [5, 25, 50, 75 ,95], "prob in % to change direction"),
+        ]
+        self.alleles = Alleles(self.valid_values)
+        self.chromosome = Chromosome( self.alleles, {"rest": 0, "change_direction_prob": 50} )
+
+    def test_apply_chrom_on_dict(self):
+        self.chromosome.phenotype(self.dict)
+        # Check if the dictionary has been updated correctly
+        self.assertEqual(self.dict["rest"], 0)
+        self.assertEqual(self.dict["change_direction_prob"], 50)
+        self.assertEqual(self.dict["direction"], 5)
+        self.assertEqual(self.dict["energy"], 100)
+    
+    def test_apply_chrom_without_dict(self):
+        d = self.chromosome.phenotype()
+        self.assertEqual(d["rest"], 0)
+        self.assertEqual(d["change_direction_prob"], 50)
+        self.assertNotIn("direction", d)
+        self.assertNotIn("energy", d)
+
 if __name__ == "__main__":
     unittest.main()

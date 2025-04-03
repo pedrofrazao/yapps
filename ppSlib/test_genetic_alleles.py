@@ -38,5 +38,21 @@ class TestAlleles(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.alleles.random_value_for("invalid")
 
+class TestAllelesV2(unittest.TestCase):
+    def setUp(self):
+        self.valid_values = [
+            ("see_length", { "short": 0, "median": 1, "long": 3}, "see_length"),
+            ("change_direction_prob", { "none": 0, "low": 0.1, "median": 0.2, "high": 0.4 }, "change dir prob."),
+        ]
+        self.alleles = Alleles(self.valid_values)
+
+    def test_valid_names(self):
+        self.assertTrue(self.alleles._valid_names("change_direction_prob"))
+        self.assertFalse(self.alleles._valid_names("invalid"))
+
+    def test_valid_value(self):
+        self.assertTrue(self.alleles._valid_value("see_length", "long"))
+        self.assertFalse(self.alleles._valid_value("see_length", "invalid"))
+
 if __name__ == "__main__":
     unittest.main()
