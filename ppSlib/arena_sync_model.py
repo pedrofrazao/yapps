@@ -55,7 +55,10 @@ class asmState():
         if self._next_state is None:
             self._next_state = self.state.copy()
         return self._next_state
-    
+
+    def setsattr(self, attr, value):
+        self.state[attr] = value
+
     def getsattr(self, attr, default=None):
         return self.state.get(attr, default)
 
@@ -85,8 +88,20 @@ class asmState():
         self._tmp = {}
         return
 
+    def __setitem__(self, key, value):
+        """Support item assignment"""
+        self.setsattr(key, value)
+
+    def __getitem__(self, key):
+        """Support item retrieval"""
+        return self.getsattr(key)
+        
+
     def __str__(self):
         return str(self.state)
+    
+    def __dump__(self):
+        return f"current state: {str(self.state)}\nnext state: {str(self._next_state)}\ntmp data: {str(self._tmp)}"
 
 class asmObject(ArenaObject,smRole):
     """

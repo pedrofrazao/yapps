@@ -65,6 +65,9 @@ class action_selection():
     # def action_other_effect(self, agent_state, other_agent_state, **kwargs):
     #     return self.action.action_other_effect(agent_state, other_agent_state)
 
+    def __str__(self):
+        return f"action_selection: {self.actions_list}"
+
 class action_utility_list():
     def __init__(self, ulist):
         self.ulist = ulist
@@ -160,6 +163,16 @@ class rest(action):
     def calculate_utility(self, state):
         current_energy = state.t_get_attr('energy', 0)
         return super().calculate_utility(state) + 10 - current_energy
+    
+    def action_self_effect(self, state):
+        current_energy = state.t_get_attr('energy',0)
+        new_energy = current_energy + self.params['energy_recover']
+        state.t_set_attr('energy', new_energy)
+        return
+
+class mate(action):
+    def __init__(self, params=None, **kwargs):
+        super().__init__('mate', params, **kwargs)
     
     def action_self_effect(self, state):
         current_energy = state.t_get_attr('energy',0)

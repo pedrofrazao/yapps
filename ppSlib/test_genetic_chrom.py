@@ -78,6 +78,21 @@ class TestChromosomeNum(unittest.TestCase):
         self.assertEqual(self.chromosome.gene_value("rest"), 0)
         self.assertEqual(self.chromosome.gene_value("change_dir"), 50)
 
+class TestChromosomeRandom(unittest.TestCase):
+    def setUp(self):
+        self.valid_values = [
+            # action selection genes
+            ('rest', [0, 5, 10], "incremental utility for rest"),
+            # action params genes
+            ("change_dir", [5, 25, 50, 75 ,95], "prob in % to change direction"),
+        ]
+        self.alleles = Alleles(self.valid_values)
+        self.chromosome = Chromosome( self.alleles )
+
+    def test_getvalues(self):
+        self.assertIn(self.chromosome.gene_value("rest"), self.valid_values[0][1])
+        self.assertIn(self.chromosome.gene_value("change_dir"), self.valid_values[1][1])
+
 
 class TestChromosomeOnDict(unittest.TestCase):
     def setUp(self):

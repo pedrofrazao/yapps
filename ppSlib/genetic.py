@@ -80,7 +80,8 @@ class Chromosome:
                 self.genes[n] = v
         else:
             for a in self.alleles:
-                self.genes[a] = self.alleles.random_value_for(a)
+                genename = a[0]
+                self.genes[genename] = self.alleles.random_value_for(genename)
 
     def __str__(self):
         return ' | '.join(f"{name}: {value}" for name, value in self.genes.items())

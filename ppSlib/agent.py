@@ -100,7 +100,10 @@ class Agent(asmObject):
 
     def run_interaction(self, context=None):
         super().run_interaction(context)
+        # see
         surroundings = self.see(self.asmstate)
+        self.asmstate.t_set_attr('surroundings', surroundings)
+        # select action
         action,args_action = self.select_action(self.asmstate,surroundings)
         self.do_action(action,args_action)
 
@@ -129,8 +132,9 @@ class Agent(asmObject):
     
     def see(self,state=None):
         x,y = self.x, self.y
+        dir = self.direction()
         see_length = self.getsattr('see_length',1)
-        return self.arena.get_pos_surrounding(x, y, see_length)
+        return self.arena.get_pos_surrounding(x, y, dir, see_length)
 
     def do_action(self,action,action_args):
         pass
@@ -236,7 +240,7 @@ class LivingAgent(Agent,asmObjectStat):
 
         ## apply the chromosome to the state
         if( hasattr(self, 'chromosome') ):
-            self.chromosome.apply_to_state(self.get_state())
+            self.chromosome.phenotype(self.get_state())
         
         
     # def select_direction(self, surrounding=None):
@@ -250,13 +254,18 @@ class LivingAgent(Agent,asmObjectStat):
     
 
     def do_action(self,oaction,action_args):
+        if( oaction is None ):
+            self.add_msg( "no action selected" )
+            return
+        params = oaction.run_action(self.get_state())
         if( isinstance( oaction, move ) ):
-            params = oaction.run_action(self.get_state())
             self.move( *params )
         elif( isinstance( oaction, action ) ):
-            oaction.run_action(self.get_state())
+            pass
         else:
             raise ValueError("Unknown action: " + str(oaction))
+        
+        self.add_msg( f"{oaction.name} - {params}" )
         
     def _random_direction_selector(self, prob_change=30):
         if( randint(1,100) < prob_change ):
@@ -273,9 +282,8 @@ class LivingAgent(Agent,asmObjectStat):
 
     def select_action(self,state,surroundings):
         utilities = self._action_selector.calculate_utility(state=state)
-        (a, u) = utilities.get_top_action_list()[0]
-        state = self.get_state()
-        state.t_set_attr('surroundings', surroundings)
+        ta =  utilities.get_top_action_list()
+        (a, u) = ta[0] if len(ta) > 0 else (None, None)
         return a, state
 
 
@@ -307,7 +315,7 @@ class Trap(NonlivingAgent):
 class Prey(LivingAgent):
     def __init__(self, **kwargs):
         kwargs['state_args'] = Agent.add_to_state_args( { 'energy':20, 'epoch_penalty': 0 }, **kwargs )
-        kwargs['priority'] = kwargs.get('priority', 1)
+        kwargs['priority'] = kwargs.get('priority', 25)
         if 'actions' not in kwargs:
             kwargs['actions'] = [ move({ 'distance': 1, 'energy_penalty': 0, 'change_direction_prob': 0}) ]
 
@@ -327,10 +335,11 @@ class Prey(LivingAgent):
 class Glide(LivingAgent):
     def __init__(self, dir=8, **kwargs):
         self.dir = dir
-        kwargs['state_args'] = Agent.add_to_state_args( { 'energy':10, 'direction': dir, 'epoch_penalty': 0 }, **kwargs )
-        kwargs['priority'] = kwargs.get('priority', 1)
+        kwargs['state_args'] = Agent.add_to_state_args( { 'energy':10, 'direction': dir, 'epoch_penalty': 0, 'change_direction_prob': 0.1 }, **kwargs )
+        kwargs['priority'] = kwargs.get('priority', 5)
+        change_direction_prob = kwargs['state_args']['change_direction_prob']
 
-        kwargs['actions'] = [ move({ 'distance': 1, 'energy_penalty': 0, 'change_direction_prob': 0}) ]
+        kwargs['actions'] = [ move({ 'distance': 1, 'energy_penalty': 0, 'change_direction_prob': change_direction_prob}) ]
         super().__init__( volume=33, **kwargs )
 
 
@@ -455,11 +464,12 @@ class Grass(LivingAgent):
     def __init__(self, **kwargs):
         ## no energy loss
         kwargs['state_args'] = Agent.add_to_state_args({ 'volume':1, 'energy':1,
-                                                         'epoch_penalty': 0,'see_length':1,
+                                                         'epoch_penalty': 0,'see_length':0,
                                                          'min_matetime': 5,
                                                          },
                                                          **kwargs )
-        kwargs['priority'] = kwargs.get('priority', 1)
+        kwargs['priority'] = kwargs.get('priority', 5)
+        # kwargs['actions']
         super().__init__( can_move=False, **kwargs )
 
     def select_action(self, state, surroundings):
