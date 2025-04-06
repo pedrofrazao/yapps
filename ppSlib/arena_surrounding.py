@@ -15,9 +15,31 @@ class Surrounding:
     def sorted(self):
         return sorted(self,key=lambda x: x[1])
 
+    def get_objects(self,only_class=None):
+        """
+        return: list of object: [obj1, obj2, ...]
+        """ 
+        if only_class is not None and isinstance(only_class, list):
+            return [o for o in self.objects if any(isinstance(o, cls) for cls in only_class)]
+        elif only_class is not None:
+            # only one class
+            return [o for o in self.objects if isinstance(o, only_class)]
+        else:
+            return self.objects
+        
+    def get_objects_plus_meta(self, only_class=None):
+        """
+        return: list of object: [(obj1, distance, direction), (obj2, distance, direction), ...]
+        """
+        if only_class is not None and isinstance(only_class, list):
+            return [(o,ds,dr) for o,ds,dr in self.objects_meta if any(isinstance(o, cls) for cls in only_class)]
+        elif only_class is not None:
+            return [(o,ds,dr) for o,ds,dr in self.objects_meta if isinstance(o, only_class)]
+        else:
+            return self.objects_meta
+
     def _get_surrounding(self):
         """Get the surrounding objects of the current position."""
-        surrounding = set()
         empty_pos = set()
         meta = set()
         if self.length > self.arena.rows and self.length > self.arena.cols:
@@ -42,12 +64,12 @@ class Surrounding:
                     distance = self.distance_xy(x,y)
                     direction = self.direction_xy(x,y)
                     if( distance <= self.length ):
-                        surrounding.add(o)
                         meta.add( (o, distance, direction) )
 
-        self.objects_meta = list(meta)
         self.empty_pos = list(empty_pos)
-        return list(surrounding)
+        self.objects_meta = sorted(list(meta), key=lambda x: x[1])
+        surrounding = [ o for o, _, _ in self.objects_meta ]
+        return surrounding
 
     def _all_positions_at_distance(self):
         """Get all positions at a certain distance from a point."""
