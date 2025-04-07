@@ -261,15 +261,9 @@ class LivingAgent(Agent,asmObjectStat):
     
 
 
-
-
-
-
-
-
 class LivingGAAgent(LivingAgent):
     def __init__(self, **kwargs):
-        if( not hasattr(self, 'chromosome') ):
+        if( not hasattr(self, 'chromosome') and 'chromosome' not in kwargs ):
             raise ValueError("chromosome not defined for a ".self.__class__.__name__)
         
         self.chromosome = Chromosome( kwargs['chromosome'])
@@ -279,6 +273,9 @@ class LivingGAAgent(LivingAgent):
         
         ## apply the chromosome to the state
         self.chromosome.phenotype(self.get_state())
+
+    def get_gene(self,name):
+        return self.chromosome.gene_value(name)
 
 
 class Block(NonlivingAgent):
@@ -464,11 +461,13 @@ class Grass(LivingAgent):
                                                          **kwargs )
         kwargs['priority'] = kwargs.get('priority', 5)
 
-        actions = [ mate( { 'mate': { 'species': [Grass],
-                                'utility_value': 10,
-                                'minimal_energy': 10,
-                                'nearby_distance': 1, },
-                            'penalty': { 'species': [], 'count_factor': 0, 'distance_factor':0 },
+        actions = [ mate( { 'mate_species': [Grass],
+                            'utility_value': 10,
+                            'minimal_energy': 10,
+                            'nearby_distance': 1, 
+                            'penalty_species': [],
+                            'penalty_count_factor': 0,
+                            'penalty_distance_factor':0,
                             'energy_penalty': 9 } ),
                     rest( { 'energy_recover': 2, 'max_recoverable_energy': 20 } ),
         ]
@@ -486,20 +485,28 @@ class Grass2(LivingGAAgent):
                                                          },
                                                          **kwargs )
         kwargs['priority'] = kwargs.get('priority', 5)
+        kwargs['chromosome'] = kwargs.get('chromosome',
+                                          [ ('rest|energy_recover',[1,5,10,20],"" ),
+                                            # ('mate|energy_penalty',[0,1,2,3,4,5],"" ),
+                                            # ('mate|near_by_distance',[0,1,2],""),
+                                            ('see_length',[0,2],"" ),
+                                          ])
 
-        actions = [ mate( { 'mate': { 'species': [Grass],
-                                'utility_value': 10,
-                                'minimal_energy': 10,
-                                'nearby_distance': 1, },
-                            'penalty': { 'species': [], 'count_factor': 0, 'distance_factor':0 },
-                            'energy_penalty': 9 } ),
+        actions = [ mate( { 'mate_species': [Grass2],
+                            'utility_value': 10,
+                            'minimal_energy': 10,
+                            'nearby_distance': 1,
+                            'penalty_species': [],
+                            'penalty_count_factor': 0,
+                            'penalty_distance_factor': 0,
+                            'energy_penalty': 9, } ),
                     rest( { 'energy_recover': 2, 'max_recoverable_energy': 20 } ),
         ]
 
         kwargs['actions'] = actions
 
         super().__init__( can_move=False, **kwargs )
-        
+
 
 class Wolf(LivingAgent):
     def __init__(self, **kwargs):

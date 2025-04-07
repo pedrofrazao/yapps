@@ -99,7 +99,7 @@ class action_utility_list():
 class action:
     def __init__(self, name, params={}, success_prob=1, utility_base_value=0 ):
         self.name = name
-        self.params = params
+        self._default_params = params
         self.success_prob = success_prob
         self.utility_base_value = utility_base_value
         self._param_key = self.__class__.__name__+'_param_key'
@@ -182,6 +182,21 @@ class action:
         """
         pass
     
+    def get_action_param_value(self, state, param_name, default=None):
+        """get the action parameter value from the state
+        if not found, return default value
+        """
+        key = self.__class__.__name__ + '|' + param_name
+        v = state.t_get_attr(key, None)
+        if v is None:
+            try:
+                # v = self._default_params[self.__class__.__name__][param_name]
+                v = self._default_params[param_name]
+            except KeyError:
+                raise ValueError(f"Parameter '{param_name}' not found in default params: {str(self._default_params)}")
+        
+        return v
+
     def get_current_state_value_for(self, state, param_name, default=None):
         """get the current state value for the parameter"""
 
@@ -222,23 +237,22 @@ class rest(action):
 
     def calculate_utility(self, state):
         current_energy = state.t_get_attr('energy', 0)
-        if( current_energy >= self.params['max_recoverable_energy'] ):
+        if( current_energy >= self.get_action_param_value(state,'max_recoverable_energy') ):
             return 0, None
-        return self.params['energy_recover'],None
+        return self.get_action_param_value(state,'energy_recover'),None
     
     def action_self_effect(self,agent, state, _):
         current_energy = state.t_get_attr('energy',0)
-        new_energy = current_energy + self.params['energy_recover']
+        new_energy = current_energy + self.get_action_param_value(state,'energy_recover')
         state.t_set_attr('energy', new_energy)
         return None
 
 class mate(action):
     """
     needed parameters:
-    - 'mate': { 'species': [] }
-    - 'penalty': {
-            'species': [],
-            'count_factor': 2, }
+    - 'mate_species': [],
+    - 'penalty_species': [],
+    - 'penalty_count_factor': 2,
     - energy_penalty: 0
 
     t_attrs (via calculate_utility):
@@ -247,18 +261,14 @@ class mate(action):
     """
     def __init__(self, params=None, **kwargs):
         if params is None:
-            params = { 'mate': {
-                            'species': [],
-                            'utility_value': 10,
-                            'minimal_energy': 0,
-                            'nearby_distance': 0,
-                            },
-                       'penalty': {
-                            'species': [],
-                            'distance_factor': 0.5,
-                            'count_factor': 1, },
-                        'energy_penalty': 0,
-                        
+            params = { 'mate_species': [],
+                       'utility_value': 10,
+                       'minimal_energy': 0,
+                       'nearby_distance': 0,
+                       'penalty_species': [],
+                       'penalty_distance_factor': 0.5,
+                       'penalty_count_factor': 1,
+                       'energy_penalty': 0,                        
             }
         super().__init__('mate', params, **kwargs)
 
@@ -274,31 +284,30 @@ class mate(action):
             return 0, None
         
         # find same species
-        same_species = saw.get_objects_plus_meta(only_class=self.params['mate']['species'])
+        same_species = saw.get_objects_plus_meta(only_class=self.get_action_param_value(state,'mate_species'))
         if ( len(same_species) == 0
-                or state.t_get_attr('energy',0) < self.params['mate']['minimal_energy'] ):
+                or state.t_get_attr('energy',0) < self.get_action_param_value(state,'minimal_energy') ):
             # No species found in the surrounding
             return 0, None
         mate_meta_nearby = same_species[0]
         state.t_set_attr('mate_meta_nearby', mate_meta_nearby)
 
-        if(mate_meta_nearby[1] > self.params['mate'].get('nearby_distance', 0)):
+        if(mate_meta_nearby[1] > self.get_action_param_value(state,'nearby_distance') ):
             # too far away
             return 0, None
 
         # Penalty for the species in 'penalty'
-        penalty_meta_agents = saw.get_objects_plus_meta(only_class=self.params['penalty']['species'])
-        penalty = sum( self.params['penalty']['count_factor']
-                        + ( self.params['penalty']['distance_factor'] * o[1] )
+        penalty_meta_agents = saw.get_objects_plus_meta(only_class=self.get_action_param_value(state,'penalty_species'))
+        penalty = sum( self.get_action_param_value(state,'penalty_count_factor')
+                        + ( self.get_action_param_value(state,'penalty_distance_factor') * o[1] )
                         for o in penalty_meta_agents)
 
-        uvalue += self.params['mate']['utility_value'] - penalty
+        uvalue += self.get_action_param_value(state,'utility_value') - penalty
         run_params = {
             'utility_value': uvalue,
             'mate_meta_nearby': mate_meta_nearby,
         }
-                
-            
+                  
         state.t_set_attr('run_params', run_params)
         return uvalue, run_params
 
@@ -306,7 +315,7 @@ class mate(action):
     def action_self_effect(self,agent,state,params):
 
         current_energy = self.get_current_state_value_for(state, 'energy')
-        new_energy = current_energy - self.params['energy_penalty']
+        new_energy = current_energy - self.get_action_param_value(state,'energy_penalty')
         self.set_current_state_value_for(state, 'energy', new_energy)
 
         result_target = None
@@ -360,16 +369,16 @@ class simple_move(action):
 
     def action_self_effect(self,agent,state,params):
         current_energy = self.get_current_state_value_for(state, 'energy')
-        new_energy = current_energy - self.params['energy_penalty']
+        new_energy = current_energy - self.get_action_param_value(state,'energy_penalty')
         self.set_current_state_value_for(state, 'energy', new_energy)
 
-        if random() < self.params['change_direction_prob']:
+        if random() < self.get_action_param_value(state,'change_direction_prob'):
             # change direction
             new_direction = choice([1,2,3,4,6,7,8,9])
             state.t_set_attr('direction', new_direction)
-        state.t_set_attr('move_distance', self.params['distance'])
+        state.t_set_attr('move_distance', self.get_action_param_value(state,'distance'))
         return { 'dir': state.t_get_attr('direction', None),
-                 'dist': self.params['distance'], }
+                 'dist': self.get_action_param_value(state,'distance'), }
 
 
     def do_update(self, agent, state, result):
@@ -388,13 +397,11 @@ class eat(move):
     """
     needed parameters:
     - 'max_distance': 1
-    - 'target': { 'classes': [] }
-    - 'energy_gain': 10 | { 'class_name': {'energy_gain': 10 },
-                            'class_name2': {'energy_gain': -2 } }
-    - 'penalty': {
-            'species': [],
-            'distance_factor': 0,
-            'count_factor': 0, }
+    - 'target_classes': []
+    - 'energy_gain': 10
+    - 'penalty_species': [],
+    - 'penalty_distance_factor': 0,
+    - 'penalty_count_factor': 0,
 
     t_attrs (via calculate_utility):
     - target: (agent, distance, direction)
@@ -403,7 +410,7 @@ class eat(move):
         if params is None:
             params = { 
                 'max_distance': 0,
-                'target': { 'classes': [] },
+                'target_classes': [],
                 'energy_gain': 10,
             }
         super().__init__('mate', params, **kwargs)
@@ -414,27 +421,22 @@ class eat(move):
         uvalue = self.utility_base_value
         saw = state.saw()
         if saw is not None:
-            targets = saw.get_objects_plus_meta(only_class=self.params['target']['classes'])
+            targets = saw.get_objects_plus_meta(only_class=self.get_action_param_value(state,'target_classes'))
             if len(targets) == 0:
                 return -1
             target = targets[0]
 
-            if(target[1] > self.params['max_distance']):
+            if(target[1] > self.get_action_param_value(state,'max_distance')):
                 # too far away
                 return -1
             
-            if(target[1] <= self.params['max_distance']):
+            if(target[1] <= self.get_action_param_value(state,'max_distance')):
                 # expect energy gain
-                gain = 0
-                if isinstance(self.params['energy_gain'], dict):
-                    # dict of class_name: energy_gain
-                    gain += self.params['energy_gain'].get(target[0].__class__.__name__, 0)
-                else:
-                    gain += self.params['energy_gain']
+                gain += self.get_action_param_value(state,'energy_gain', 0)
 
-                penalty_meta_agents = saw.get_objects_plus_meta(only_class=self.params['penalty']['species'])
-                penalty = sum( self.params['penalty']['count_factor']
-                                + ( self.params['penalty']['distance_factor'] * o[1] )
+                penalty_meta_agents = saw.get_objects_plus_meta(only_class=self.get_action_param_value(state,'penalty_species'))
+                penalty = sum( self.get_action_param_value(state,'penalty_count_factor')
+                                + ( self.get_action_param_value(state,'penalty_distance_factor') * o[1] )
                                 for o in penalty_meta_agents)
                 
                 uvalue += gain - penalty
