@@ -25,6 +25,8 @@ class ArenaObject:
         self.can_move = can_move
         self.msg = []
         self.max_msg = max_msg
+        if arena is None:
+            raise( ValueError("Arena cannot be None") )
         self.arena = arena
         self.name = name if name is not None else self.__class__.__name__ +'-'+ str(self.id)
         self.nickname = self.name[0] + self.name[-1]
@@ -79,6 +81,9 @@ class ArenaObject:
         self.x = x
         self.y = y
 
+    def getposition(self):
+        return (self.x, self.y)
+
     def __repr__(self):
         return f"ArenaObject(name={self.name})"
     
@@ -89,6 +94,12 @@ class ArenaObject:
         return ','.join( [ self.name, self.x, self.y, self.volume, self.can_move ] )
 
     
+    def get_last_msg(self):
+        if len(self.msg) > 0:
+            return self.msg[-1]
+        else:
+            return ""
+        
     def add_msg(self, msg):
         self.msg.append(msg)
         self.msg = self.msg[-self.max_msg:]
@@ -315,9 +326,9 @@ class Arena:
         else:
             return False
 
-    def get_pos_surrounding(self, x, y, direction=0, length=1):
+    def get_pos_surrounding(self, x, y, direction=0, length=1, exclude_obj=None):
         """Get the surrounding objects of the current position."""
-        return self.SurroundingClass(self, x, y, direction, length)
+        return self.SurroundingClass(self, x, y, direction, length, exclude_obj=exclude_obj)
 
     def distance_between_objects(self, obj1, obj2):
         """Get the distance between two objects."""

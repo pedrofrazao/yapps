@@ -8,7 +8,7 @@ from ppSlib.arena_sync_model import asmState
 
 class TestAction(unittest.TestCase):
     def setUp(self):
-        self.actions_list = [ action.rest( params={'energy_recover':2} ),
+        self.actions_list = [ action.rest( params={'energy_recover':2, 'max_recoverable_energy': 25} ),
                                 action.move( params={'distance':1,'energy_penalty': 2} ) ]
 
 
@@ -22,34 +22,38 @@ class TestAction(unittest.TestCase):
         rest = self.actions_list[0]
         state = asmState( {'energy': 5})
         
-        self.assertEqual( rest.calculate_utility(state), 10 - 5 )
+        uvalue, params = rest.calculate_utility(state)
+        self.assertEqual( uvalue, 2)
         self.assertEqual( state.t_get_attr('energy',None), 5 ) 
-        rest.run_action(state)
+
+        rest.run_action(state, None, params)
         self.assertEqual( state.t_get_attr('energy',None), 7 )
 
         state = asmState( {'energy': 100})
-        self.assertEqual( rest.calculate_utility(state), 10 - 100 )
-        rest.run_action(state)
+        uvalue, params = rest.calculate_utility(state)
+        self.assertEqual( uvalue, max(0, 10 - 100) )
+        rest.run_action(state, params)
         self.assertEqual( state.t_get_attr('energy',None), 102 )
 
     def test_rest_action(self):
-        state = asmState( {'energy': 40})
+        state = asmState( {'energy': 40, 'max_recoverable_energy':25})
         rest_action = action.rest()
 
         # Test utility calculation
-        utility = rest_action.calculate_utility(state)
-        assert utility == 10 - 40 + rest_action.utility_base_value
+        utility,params = rest_action.calculate_utility(state)
+        assert utility == 0
 
         # Test self-effect
-        rest_action.run_action(state)
+        rest_action.run_action(state, params)
         self.assertEqual( state.t_get_attr('energy',None), 42, "Energy increased by 2 (default recovery value)" )
 
     def test_move_action(self):
         state = asmState( {'energy': 50, 'direction': 0})
         move_action = action.move({ 'distance': 1, 'energy_penalty': 2, 'change_direction_prob': 1})
+        utility,params = move_action.calculate_utility(state)
 
         # Test self-effect
-        move_action.run_action(state)
+        move_action.run_action(state,params)
         assert state.t_get_attr('energy',-1) == 48  # Energy decreased by 1 (default penalty value)
         self.assertEqual(state.t_get_attr('move_distance',-1), 1, "Default distance is 1")
         self.assertIn(state.t_get_attr('direction',-1), [1,2,3,4,6,7,8,9])
@@ -74,15 +78,15 @@ class TestAction(unittest.TestCase):
         assert uu[0][1] == 6
         assert uu[1][1] == 0
 
+
 class TestActionList2(unittest.TestCase):
     def setUp(self):
         state = asmState( {'energy': 4})
-        rest_action = action.rest( utility_base_value=5,
-                                   params={'energy_recover':10 } )
-        move_action = action.move( utility_base_value=8,
+        rest_action = action.rest( utility_base_value=0,
+                                   params={'energy_recover':10, 'max_recoverable_energy':11 } )
+        move_action = action.move( utility_base_value=5,
                                    params={'distance':2, 'energy_penalty': 2, 'change_direction_prob':0 } )
  
-
         selector = action.action_selection(actions=[rest_action])
         selector.add_action(move_action)
         self.selector = selector
@@ -93,36 +97,37 @@ class TestActionList2(unittest.TestCase):
         state = self.state
 
         # Test adding actions
-        assert len(selector.actions_list) == 2
+        self.assertEqual( len(selector.actions_list), 2 )
 
         # Test utility calculation
         utilities = selector.calculate_utility(state=state)
-        assert len(utilities) == 2
-        uu = [ u for u in utilities ]
+        self.assertEqual( len(utilities), 2 )
+        uu = utilities.get_top_action_list(n=2)
         # print( ">> "+ str(uu) )
-        assert uu[0][0].name == 'rest'
-        assert uu[1][0].name == 'move'
-        assert uu[0][1] == 5 + 10 - 4
-        assert uu[1][1] == 8
-
-        [a] = utilities.get_top_action_list()
-        a,u = a
-        assert a.name == 'rest'
-        assert u == 5 + 10 - 4
+        self.assertEqual( uu[0][0].name, 'rest' )
+        self.assertEqual( uu[1][0].name, 'move' )
+        self.assertEqual( uu[0][1], 0 + 10 )
+        self.assertEqual( uu[1][1], 5 )
 
         ## calc action parameters
-        b_energy = state.t_get_attr('energy', 0)
-        a.run_action(state)
-        a_energy = state.t_get_attr('energy', 0)
-        assert a_energy == b_energy + 10
+        a = uu[0][0]
+        params = uu[0][2]
+        b_energy = state.t_get_attr('energy')
+        a.run_action(state,params)
+        a_energy = state.t_get_attr('energy')
+        self.assertEqual( a_energy , b_energy + 10 )
+
+        # commit results on state strucuture
+        a.action_update_phase(state)
 
         ## try new selection
         utilities = selector.calculate_utility(state=state)
         assert len(utilities) == 2
-        
-        (a, u) = utilities.get_top_action_list()[0]
-        assert a.name == 'move'
-        a.run_action(state)
+
+        # print( ">> "+ str(uu) )
+        (a, u, p) = utilities.get_top_action_list()[0]
+        self.assertEqual(a.name,'move')
+        a.run_action(state,p)
 
         self.assertEqual( state.t_get_attr('move_distance', 0), 2 )
         self.assertIn( state.t_get_attr('direction', 0), [0] )

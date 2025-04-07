@@ -51,8 +51,8 @@ class action_selection():
     def calculate_utility(self,state):
         utility_by_action = {}
         for a in self.actions_list:
-            uvalue = a.calculate_utility(state)
-            utility_by_action[a.name] = (a,self.__limit_calculate_utility(uvalue))
+            uvalue, params = a.calculate_utility(state)
+            utility_by_action[a.name] = (a,self.__limit_calculate_utility(uvalue),params)
 
         return action_utility_list(utility_by_action)
 
@@ -102,35 +102,90 @@ class action:
         self.params = params
         self.success_prob = success_prob
         self.utility_base_value = utility_base_value
+        self._param_key = self.__class__.__name__+'_param_key'
+        self._resutl_key = self.__class__.__name__+'_result_key'
 
+    # def get_run_params(self,state,default=None):
+    #     return state.t_get_attr(self._param_key, default)
+    
+    # def set_run_params(self,state,params):
+    #     state.t_set_attr(self._param_key, params)
+
+    def get_action_result(self,state,default=None):
+        return state.t_get_attr(self._resutl_key, default)
+    
+    def set_action_result(self,state,result):
+        state.t_set_attr(self._resutl_key, result)
 
     def calculate_utility(self, state):
-        """calculate the utility of the action"""
-        return self.utility_base_value
+        """calculate the utility of the action
+        return utility_value, run_action_params
+        """
+        return self.utility_base_value,None
 
 
     def __action_run_success(self, state):
-        """calculate the success of the action"""
+        """calculate the success of the action
+        return: True/False
+        """
+        res = False
         if self.success_prob == 1:
-            return True
+            res = True
         else:
-            return True if random() < self.success_prob else False
+            res = True if random() < self.success_prob else False
+        state.t_set_attr('action_success_run', res)
+        return res
 
 
-    def run_action(self, state):
-        """run the action"""
-        self.__action_run_success(state)
-        return self.action_self_effect(state)
+    def action_run_success(self, state):
+        """check if the action run was successful
+        return: True/False/None (if not run yet)
+        """
+        return state.t_get_attr('action_success_run', None)
 
 
-    def action_self_effect(self,state):
+    def run_action(self, agent, state, params):
+        """ **interaction phase** interface to run the action,
+        return None
+        """
+        if self.__action_run_success(state):
+            # self.set_run_params(state, params) ---- not needed call done by agent
+            result = self.action_self_effect(agent, state, params)
+            self.set_action_result(state, result)
+        return
+
+
+    def action_self_effect(self,agent,state,params):
+        """
+        **ovrride this method** to implement the action effect
+        return result (any data type)
+        """
         pass
 
+
+    def action_update_phase(self,agent,state):
+        """
+        **update phase**
+        use returned data by action_self_effect to update state
+        return None
+        """
+        result = self.get_action_result(state)
+        if( result is not None ):
+            self.do_update(agent, state, result)
+        return
+
+    def do_update(self, agent, state,result):
+        """
+        **ovrride this method** to implement the action update phase
+        update the state based on the result of the action
+        return None
+        """
+        pass
     
-    def get_current_state_value_for(self, state, param_name):
+    def get_current_state_value_for(self, state, param_name, default=None):
         """get the current state value for the parameter"""
 
-        return state.t_get_attr(param_name, None)
+        return state.t_get_attr(param_name, default)
 
         # if param_name not in self.params:
         #     raise ValueError(f"Parameter {param_name} not found")
@@ -155,32 +210,141 @@ class action:
 
 
 class rest(action):
+    """
+    needed parameters:
+    - energy_recovery
+    - max_recoverable_energy
+    """
     def __init__(self, params=None, **kwargs):
         if params is  None:
-            params = { 'energy_recover': 2 }
+            params = { 'energy_recover': 2, 'max_recoverable_energy': 25 }
         super().__init__('rest', params, **kwargs)
 
     def calculate_utility(self, state):
         current_energy = state.t_get_attr('energy', 0)
-        return super().calculate_utility(state) + 10 - current_energy
+        if( current_energy >= self.params['max_recoverable_energy'] ):
+            return 0, None
+        return self.params['energy_recover'],None
     
-    def action_self_effect(self, state):
+    def action_self_effect(self,agent, state, _):
         current_energy = state.t_get_attr('energy',0)
         new_energy = current_energy + self.params['energy_recover']
         state.t_set_attr('energy', new_energy)
-        return
+        return None
 
 class mate(action):
+    """
+    needed parameters:
+    - 'mate': { 'species': [] }
+    - 'penalty': {
+            'species': [],
+            'count_factor': 2, }
+    - energy_penalty: 0
+
+    t_attrs (via calculate_utility):
+    - mate_meta_nearby: (agent, distance, direction)
+    - run_params: { utility_value: x, mate_meta_nearby: (o,dist,dir) }
+    """
     def __init__(self, params=None, **kwargs):
+        if params is None:
+            params = { 'mate': {
+                            'species': [],
+                            'utility_value': 10,
+                            'minimal_energy': 0,
+                            'nearby_distance': 0,
+                            },
+                       'penalty': {
+                            'species': [],
+                            'distance_factor': 0.5,
+                            'count_factor': 1, },
+                        'energy_penalty': 0,
+                        
+            }
         super().__init__('mate', params, **kwargs)
-    
-    def action_self_effect(self, state):
-        current_energy = state.t_get_attr('energy',0)
-        new_energy = current_energy + self.params['energy_recover']
-        state.t_set_attr('energy', new_energy)
+
+
+    def calculate_utility(self, state):
+        # Get the surrounding species
+        uvalue = self.utility_base_value
+        run_params = None
+        saw = state.saw()
+
+        if saw is None:
+            # no surrounding
+            return 0, None
+        
+        # find same species
+        same_species = saw.get_objects_plus_meta(only_class=self.params['mate']['species'])
+        if ( len(same_species) == 0
+                or state.t_get_attr('energy',0) < self.params['mate']['minimal_energy'] ):
+            # No species found in the surrounding
+            return 0, None
+        mate_meta_nearby = same_species[0]
+        state.t_set_attr('mate_meta_nearby', mate_meta_nearby)
+
+        if(mate_meta_nearby[1] > self.params['mate'].get('nearby_distance', 0)):
+            # too far away
+            return 0, None
+
+        # Penalty for the species in 'penalty'
+        penalty_meta_agents = saw.get_objects_plus_meta(only_class=self.params['penalty']['species'])
+        penalty = sum( self.params['penalty']['count_factor']
+                        + ( self.params['penalty']['distance_factor'] * o[1] )
+                        for o in penalty_meta_agents)
+
+        uvalue += self.params['mate']['utility_value'] - penalty
+        run_params = {
+            'utility_value': uvalue,
+            'mate_meta_nearby': mate_meta_nearby,
+        }
+                
+            
+        state.t_set_attr('run_params', run_params)
+        return uvalue, run_params
+
+
+    def action_self_effect(self,agent,state,params):
+
+        current_energy = self.get_current_state_value_for(state, 'energy')
+        new_energy = current_energy - self.params['energy_penalty']
+        self.set_current_state_value_for(state, 'energy', new_energy)
+
+        result_target = None
+        result_new_agent = []
+        # get the mate meta nearby
+        mate_meta_nearby = state.t_get_attr('mate_meta_nearby', None)
+        if mate_meta_nearby is not None:
+            # mate is possible
+            partner,dist,dir = mate_meta_nearby
+            result_target = partner
+            result_new_agent = agent.mate( partner = partner, mate_params = params)
+
+        return { 'partner': result_target,
+                 'new_agent': result_new_agent, }
+
+
+    def do_update(self,agent,state,result):
+        """update the state based on the result of the action
+        return None
+        """
+        if result is None:
+            return
+        
+        if 'new_agent' in result and len(result['new_agent']) > 0:
+            # get the new agent
+            saw = state.saw()
+            empty_pos = saw.find_empty_position()
+            for a in result['new_agent']:
+                if len(empty_pos) == 0:
+                    # no empty position
+                    break
+                x,y = choice(empty_pos)
+                empty_pos.remove((x,y))
+                agent.arena.add_to_position(x,y,a)
+
         return
 
-class move(action):
+class simple_move(action):
     """
     __init__( params = { 'distance': 1, 'energy_penalty': 2, 'change_direction_prob': 0.1}
     """
@@ -189,8 +353,12 @@ class move(action):
             params = { 'distance': 1, 'energy_penalty': 2, 'change_direction_prob': 0.1}
         super().__init__('move', params, **kwargs)
 
-    
-    def action_self_effect(self,state):
+
+    def calculate_utility(self, state):
+        return self.utility_base_value, None
+
+
+    def action_self_effect(self,agent,state,params):
         current_energy = self.get_current_state_value_for(state, 'energy')
         new_energy = current_energy - self.params['energy_penalty']
         self.set_current_state_value_for(state, 'energy', new_energy)
@@ -200,33 +368,105 @@ class move(action):
             new_direction = choice([1,2,3,4,6,7,8,9])
             state.t_set_attr('direction', new_direction)
         state.t_set_attr('move_distance', self.params['distance'])
-        return [ state.t_get_attr('direction', None), self.params['distance'] ]
+        return { 'dir': state.t_get_attr('direction', None),
+                 'dist': self.params['distance'], }
+
+
+    def do_update(self, agent, state, result):
+        if result is not None:
+            direction = result['dir']
+            distance = result['dist']
+            agent.move(direction=direction, distance=distance)
+        return
+
+
+class move(simple_move):
+    pass
+
 
 class eat(move):
     """
-    __init__( params = { 'max_distance': 1, 'energy_penalty': 2, 'energy_recover': 10}
+    needed parameters:
+    - 'max_distance': 1
+    - 'target': { 'classes': [] }
+    - 'energy_gain': 10 | { 'class_name': {'energy_gain': 10 },
+                            'class_name2': {'energy_gain': -2 } }
+    - 'penalty': {
+            'species': [],
+            'distance_factor': 0,
+            'count_factor': 0, }
+
+    t_attrs (via calculate_utility):
+    - target: (agent, distance, direction)
     """
-    def __init__(self, params=None):
-        if params is  None:
-            params = { 'energy_penalty': 2, 'energy_recover': 10 }
-        super().__init__('eat',params)
-    
-    def action_self_effect(self,state):
-        ## always consume energy
+    def __init__(self, params=None, **kwargs):
+        if params is None:
+            params = { 
+                'max_distance': 0,
+                'target': { 'classes': [] },
+                'energy_gain': 10,
+            }
+        super().__init__('mate', params, **kwargs)
+
+
+    def calculate_utility(self, state):
+        # Get the surrounding species
+        uvalue = self.utility_base_value
+        saw = state.saw()
+        if saw is not None:
+            targets = saw.get_objects_plus_meta(only_class=self.params['target']['classes'])
+            if len(targets) == 0:
+                return -1
+            target = targets[0]
+
+            if(target[1] > self.params['max_distance']):
+                # too far away
+                return -1
+            
+            if(target[1] <= self.params['max_distance']):
+                # expect energy gain
+                gain = 0
+                if isinstance(self.params['energy_gain'], dict):
+                    # dict of class_name: energy_gain
+                    gain += self.params['energy_gain'].get(target[0].__class__.__name__, 0)
+                else:
+                    gain += self.params['energy_gain']
+
+                penalty_meta_agents = saw.get_objects_plus_meta(only_class=self.params['penalty']['species'])
+                penalty = sum( self.params['penalty']['count_factor']
+                                + ( self.params['penalty']['distance_factor'] * o[1] )
+                                for o in penalty_meta_agents)
+                
+                uvalue += gain - penalty
+
+                run_params = {
+                    'utility_value': uvalue,
+                    'energy_gain': gain,
+                    'target_meta': target,
+                }
+            
+        state.t_set_attr('run_params', run_params)
+        return uvalue, run_params
+
+
+    def action_self_effect(self,agent,state,params):
+
         current_energy = self.get_current_state_value_for(state, 'energy')
-        new_energy = current_energy - self.params['energy_penalty']
+        new_energy = current_energy - params['energy_gain']
         self.set_current_state_value_for(state, 'energy', new_energy)
 
-        ## only recover energy if the action is successful
-        if self.__action_run_success(state):
-            current_energy = self.get_current_state_value_for(state, 'energy')
-            new_energy = current_energy - self.params['energy_recover']
-            self.set_current_state_value_for(state, 'energy', new_energy)
+        return { 'target': params['target_meta'][0] }
 
-            t = state.t_get_attr('target', None)
-            if t is not None:
-                ## set the target to 0
-                t.t_set_attr('energy',0)
 
-        return [ None, None]
-    
+    def do_update(self,agent,state,result):
+        """update the state based on the result of the action
+        return None
+        """
+        if result is None:
+            return
+
+        target = result['target']
+        if target is not None:
+            target.eaten()
+
+        return

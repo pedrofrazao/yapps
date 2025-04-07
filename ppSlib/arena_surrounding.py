@@ -2,15 +2,17 @@ import random
 
 class Surrounding:
     """A class representing the surrounding of an object in the arena."""
-    def __init__(self, arena, x, y, direction=0, length=1 ):
+    def __init__(self, arena, x, y, direction=0, length=1, exclude_obj=None ):
         self.arena = arena
         self.x = x
         self.y = y
         self.direction = direction
         self.length = length
+        self.exclude = exclude_obj
         self.objects_meta = []
         self.empty_pos = []
         self.objects = self._get_surrounding() # list of objects
+        
 
     def sorted(self):
         return sorted(self,key=lambda x: x[1])
@@ -61,6 +63,8 @@ class Surrounding:
                     continue
 
                 for o in objs:
+                    if o == self.exclude:
+                        continue
                     distance = self.distance_xy(x,y)
                     direction = self.direction_xy(x,y)
                     if( distance <= self.length ):

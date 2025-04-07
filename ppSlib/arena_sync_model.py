@@ -5,6 +5,7 @@ from ppSlib.arena import Arena, ArenaObject
 from ppSlib.sync_model.sync_model_prrt_list import SyncModelPrrtList
 from ppSlib.sync_model.sync_model import smRole
 from ppSlib.asmStats import asmStats
+# import weakref
 
 class ArenaSyncModel(Arena,asmStats):
     """
@@ -43,10 +44,20 @@ class ArenaSyncModel(Arena,asmStats):
         return arena_str
 
 class asmState():
-    def __init__(self, state):
+    def __init__(self, state, asmobject=None):
         self.state = state
         self._next_state = None
         self._tmp = {}
+        # self.asmobject = weakref.ref(asmobject) if asmobject is not None else None
+
+
+    def get_asmobject(self):
+        if self.asmobject is not None:
+            return self.asmobject()
+        return None
+    
+    def clone_state(self):
+        return self.state.copy()
 
     def get_curr_state(self):
         return self.state
@@ -81,6 +92,26 @@ class asmState():
             v = self.getsattr(attr, default)
         return v
 
+    def saw(self):
+        """get the surrounding of the object"""
+        s = self.t_get_attr('surroundings', None)
+        if s is None:
+            return None
+        return s
+
+    # def saw(self, species=False):
+    #     """get the surrounding of the object
+    #     species: if True, return only elements of a certain species
+    #     """
+    #     s = self.t_get_state('surroundings', None)
+    #     if s is None:
+    #         return None
+        
+    #     if species:
+    #         return map( lambda x: x.species(), s.objects)
+    #     else:
+    #         return s
+
     def switch_to_next_state(self):
         if self._next_state is not None:
             self.state = self._next_state
@@ -95,7 +126,6 @@ class asmState():
     def __getitem__(self, key):
         """Support item retrieval"""
         return self.getsattr(key)
-        
 
     def __str__(self):
         return str(self.state)
@@ -112,7 +142,7 @@ class asmObject(ArenaObject,smRole):
     """
     def __init__(self, name, state, priority=0, log=None, **kwargs):
         super().__init__(name, **kwargs)
-        self.asmstate = asmState(state)
+        self.asmstate = asmState(state,asmobject=self)
         self.priority = priority
         self.log = log if log is not None else self.add_msg
 
@@ -155,6 +185,16 @@ class asmObject(ArenaObject,smRole):
         # if(self.log):
         #     self.log( f"update: {self.name}" )
         self.asmstate.switch_to_next_state()
+
+    def move(self,direction, distance):
+        """Move the object in the arena"""     
+        self.arena.move_object_position(self, direction, distance)
+        return
+
+    def add_object(self, obj, x, y):
+        """Add an object to the arena"""
+        self.arena.add_to_position(x, y, obj)
+        return
 
     def __str__(self):
         return self.name + " " + str(self.state)

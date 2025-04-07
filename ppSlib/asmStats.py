@@ -1,7 +1,9 @@
+import os
 
 class asmObjectStat():
-    def __init__(self, ignore=False, **kwargs):
+    def __init__(self, ignore=True, **kwargs):
         self.ignore = ignore
+        pass
 
     def stats(self):
         return None
@@ -12,6 +14,7 @@ class asmStats():
         self.collect_at_step = kwargs.get('collect_at_step', 1)
         self.stats_for_classes = kwargs.get('stats_for_classes', [])
         self._stats_data = {}
+        self.debug = kwargs.get('debug', os.environ.get('DEBUG', False))
 
     def run_step(self):
         if self.collect_at_step ==0:
@@ -24,7 +27,7 @@ class asmStats():
         self._stats_data[self.step] = {}
         for obj in self.get_objects():
             if isinstance(obj, asmObjectStat):
-                if obj.ignore:
+                if obj.ignore and self.debug is False:
                     continue
                 v = obj.stats()
                 if v is None:
@@ -34,6 +37,7 @@ class asmStats():
                     l=self._stats_data[self.step].get(ocls,[])
                     l.append(v)
                     self._stats_data[self.step][ocls] = l
+                    print( f"|| stats: {obj} {v}")
                     continue
             else:
                 # basic stats with count by class

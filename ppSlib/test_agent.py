@@ -14,7 +14,7 @@ class see_debug(action):
     def __init__(self, params=None, **kwargs):
         super().__init__('see_debug', params, **kwargs)
     
-    def action_self_effect(self, state):
+    def action_self_effect(self, _,state,_):
         # print(str(state))
         state.t_get_attr('surroundings')
         return
@@ -160,6 +160,31 @@ class TestPrey(unittest.TestCase):
             breakpoint()
             p1.see()
             raise e
+        
+class TestMate(unittest.TestCase):
+    def setUp(self):
+        self.arena = ArenaSyncModel(5, 5)
+        actions = [ mate()]
+        self.p1 = Prey( arena = self.arena, dir=1, state_args={'energy': 10, 'epoch_penalty':1, 'see_length':1 }, actions = actions )
+        self.p2 = Prey( arena = self.arena, dir=2, state_args={'energy': 10, 'epoch_penalty':1, 'see_length':1 }, actions = actions )
+        self.arena.add_to_position(0, 0, self.p1)
+        self.arena.add_to_position(0, 1, self.p2)
+
+    def test_mate(self):
+        # see
+        saw = [ i[0] for i in self.p1.see() ]
+        self.assertIn(self.p1, saw )
+        self.assertIn(self.p2, saw )
+
+        # test energy
+        self.assertEqual(self.p1.energy(), 10)
+        self.assertEqual(self.p2.energy(), 10)
+
+        # test mate
+        self.arena.run_step()
+        if( os.environ.get('DEBUG', False) ):
+            print(self.arena)
+            print( str(self.p1.see()) )
 
 # class AmoveX(Agent):
 #     def __init__(self, dir):
