@@ -11,8 +11,8 @@ class TestArena(unittest.TestCase):
 
     def setUp(self):
         self.arena = Arena(5, 5, arena_type='plan')
-        self.obj1 = ArenaObject("Object1")
-        self.obj2 = ArenaObject("Object2")
+        self.obj1 = ArenaObject("Object1",arena=self.arena)
+        self.obj2 = ArenaObject("Object2",arena=self.arena)
 
     def test_add_to_position(self):
         self.arena.add_to_position(1, 1, self.obj1)
@@ -69,8 +69,8 @@ class TestArena(unittest.TestCase):
 class TestArenaSerialization(unittest.TestCase):
     def setUp(self):
         self.arena = Arena(5, 5, arena_type='plan')
-        self.obj1 = ArenaObject("Object1")
-        self.obj2 = ArenaObject("Object2")
+        self.obj1 = ArenaObject("Object1", arena=self.arena)
+        self.obj2 = ArenaObject("Object2", arena=self.arena)
         self.arena.add_to_position(1, 1, self.obj1)
         self.arena.add_to_position(2, 2, self.obj2)
 
@@ -96,9 +96,9 @@ class TestArenaSerialization(unittest.TestCase):
 class TestArenaSurrounding(unittest.TestCase):
     def setUp(self):
         self.arena = Arena(5, 5, arena_type='plan')
-        self.obj1 = ArenaObject("Object1")
-        self.obj2 = ArenaObject("Object2")
-        self.obj3 = ArenaObject("Object3")
+        self.obj1 = ArenaObject("Object1", arena=self.arena)
+        self.obj2 = ArenaObject("Object2", arena=self.arena)
+        self.obj3 = ArenaObject("Object3", arena=self.arena)
         """
         0 0 0 0 0
         0 1 2 0 0
@@ -145,7 +145,7 @@ class TestArenaSurrounding(unittest.TestCase):
         self.assertIn(self.obj3, surrounding.objects)
 
     def test_distance_manhattan(self):
-        obj4 = ArenaObject("Object4")
+        obj4 = ArenaObject("Object4", arena=self.arena)
         self.arena.add_to_position(2,2,obj4)
         surrounding = SurroundingManhattan( self.arena, 2, 2, length=1)
         self.assertNotIn(self.obj1, surrounding.objects)
@@ -159,12 +159,12 @@ class TestArenaSurrounding(unittest.TestCase):
 class TestArenaSurrounfingDist(unittest.TestCase):
     def setUp(self):
         self.arena = Arena(5, 5, arena_type='torus')
-        self.o1 = ArenaObject("o1")
-        self.o2 = ArenaObject("o2")
-        self.o3 = ArenaObject("o3")
-        self.o4 = ArenaObject("o4")
-        self.o5 = ArenaObject("o5")
-        self.o6 = ArenaObject("o6")
+        self.o1 = ArenaObject("o1", arena=self.arena)
+        self.o2 = ArenaObject("o2", arena=self.arena)
+        self.o3 = ArenaObject("o3", arena=self.arena)
+        self.o4 = ArenaObject("o4", arena=self.arena)
+        self.o5 = ArenaObject("o5", arena=self.arena)
+        self.o6 = ArenaObject("o6", arena=self.arena)
         """
         56 4 0 0 3
          0 0 0 0 0
@@ -231,12 +231,12 @@ class TestArenaSurrounfingDist(unittest.TestCase):
 class TestArenaSurrounfingDist2(unittest.TestCase):
     def setUp(self):
         self.arena = Arena(5, 5, arena_type='torus')
-        self.o1 = ArenaObject("o1")
-        self.o2 = ArenaObject("o2")
-        self.o3 = ArenaObject("o3")
-        self.o4 = ArenaObject("o4")
-        self.o5 = ArenaObject("o5")
-        self.o6 = ArenaObject("o6")
+        self.o1 = ArenaObject("o1", arena=self.arena)
+        self.o2 = ArenaObject("o2", arena=self.arena)
+        self.o3 = ArenaObject("o3", arena=self.arena)
+        self.o4 = ArenaObject("o4", arena=self.arena)
+        self.o5 = ArenaObject("o5", arena=self.arena)
+        self.o6 = ArenaObject("o6", arena=self.arena)
         """
         56 4 0 0 3
          0 0 0 0 0
@@ -311,12 +311,12 @@ class TestArenaSurrounfingDist2(unittest.TestCase):
 class TestArenaSurroundingSort(unittest.TestCase):
     def setUp(self):
         self.arena = Arena(5, 5, arena_type='torus')
-        self.o1 = ArenaObject("o1")
-        self.o2 = ArenaObject("o2")
-        self.o3 = ArenaObject("o3")
-        self.o4 = ArenaObject("o4")
-        self.o5 = ArenaObject("o5")
-        self.o6 = ArenaObject("o6")
+        self.o1 = ArenaObject("o1", arena=self.arena)
+        self.o2 = ArenaObject("o2", arena=self.arena)
+        self.o3 = ArenaObject("o3", arena=self.arena)
+        self.o4 = ArenaObject("o4", arena=self.arena)
+        self.o5 = ArenaObject("o5", arena=self.arena)
+        self.o6 = ArenaObject("o6", arena=self.arena)
         """
          4 0 0 0 3
          0 2 0 0 0
@@ -380,7 +380,7 @@ class TestArenaSurrounSmall(unittest.TestCase):
         self.assertEqual(25, len(empty))
         c=0
         for x,y in empty:
-            o1 = ArenaObject()
+            o1 = ArenaObject( arena=self.arena)
             self.arena.add_to_position(x,y,o1)
             c += 1
             e = Surrounding(self.arena, 0, 0, length=4).find_empty_position()

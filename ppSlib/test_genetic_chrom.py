@@ -49,6 +49,9 @@ class TestChromosome(unittest.TestCase):
     def test_crossover(self):
         other_chromosome = Chromosome( self.alleles, {"color": "red", "size": "small", "sex": "female"} )
         new_chromosome = self.chromosome.crossover(other_chromosome)
+        self.assertEqual(self.alleles, new_chromosome.alleles)
+        self.assertEqual(len(self.chromosome.alleles),3)
+        self.assertEqual(len(new_chromosome.alleles),3)
         self.assertEqual(len(new_chromosome.genes), 3)
         self.assertIn(new_chromosome.genes["color"], ["red"])
         self.assertIn(new_chromosome.genes["size"], ["small"])

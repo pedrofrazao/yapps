@@ -10,9 +10,9 @@ class TestArena(unittest.TestCase):
 
     def setUp(self):
         self.arena = Arena(5, 5, 'torus', max_volume_per_position=2)
-        self.obj1 = ArenaObject("Object1")
-        self.obj2 = ArenaObject("Object2")
-        self.obj3 = ArenaObject("Object3")
+        self.obj1 = ArenaObject("Object1", arena=self.arena)
+        self.obj2 = ArenaObject("Object2", arena=self.arena)
+        self.obj3 = ArenaObject("Object3", arena=self.arena)
 
     def test_add_to_position(self):
         self.arena.add_to_position(1, 1, self.obj1)
@@ -90,15 +90,15 @@ class TestArenaMove(unittest.TestCase):
 
     def setUp(self):
         self.arena = Arena(5, 5, 'torus', max_volume_per_position=100)
-        self.obj1 = ArenaObject("rock",volume=100)
+        self.obj1 = ArenaObject("rock",volume=100, arena=self.arena)
         self.arena.add_to_position(0, 0, self.obj1)
-        self.obj2 = ArenaObject("rock",volume=100)
+        self.obj2 = ArenaObject("rock",volume=100, arena=self.arena)
         self.arena.add_to_position(1, 0, self.obj2)
-        self.obj3 = ArenaObject("rock",volume=100)
+        self.obj3 = ArenaObject("rock",volume=100, arena=self.arena)
         self.arena.add_to_position(2, 0, self.obj3)
 
-        self.p1 = ArenaObject("p1")
-        self.p2 = ArenaObject("p2")
+        self.p1 = ArenaObject("p1", arena=self.arena)
+        self.p2 = ArenaObject("p2", arena=self.arena)
         self.arena.add_to_position(1, 1, self.p1)
         self.arena.add_to_position(1, 1, self.p2)
 
@@ -118,15 +118,15 @@ class TestArenaSerialize(unittest.TestCase):
 
     def setUp(self):
         self.arena = Arena(5, 5, 'torus', max_volume_per_position=100)
-        self.obj1 = ArenaObject("rock",volume=100)
+        self.obj1 = ArenaObject("rock",volume=100, arena=self.arena)
         self.arena.add_to_position(0, 0, self.obj1)
-        self.obj2 = ArenaObject("rock",volume=100)
+        self.obj2 = ArenaObject("rock",volume=100, arena=self.arena)
         self.arena.add_to_position(1, 0, self.obj2)
-        self.obj3 = ArenaObject("rock",volume=100)
+        self.obj3 = ArenaObject("rock",volume=100, arena=self.arena)
         self.arena.add_to_position(2, 0, self.obj3)
 
-        self.p1 = ArenaObject("p1")
-        self.p2 = ArenaObject("p2")
+        self.p1 = ArenaObject("p1", arena=self.arena)
+        self.p2 = ArenaObject("p2", arena=self.arena)
         self.arena.add_to_position(1, 1, self.p1)
         self.arena.add_to_position(1, 1, self.p2)
 

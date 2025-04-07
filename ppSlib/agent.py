@@ -240,6 +240,9 @@ class LivingAgent(Agent,asmObjectStat):
     ## accept a direction selector function
     ## - LivingAgent( select_direction=lambda surrounding: randint(1,9) if randint(1,10) > 7 else self.direction() )
     def __init__(self, dir=5, **kwargs):
+        # store the initial state args for the mate function
+        self._init_state_args = kwargs['state_args'].copy()
+
         kwargs['state_args'] = Agent.add_to_state_args( { 'see_length': 0 }, **kwargs )
         kwargs['state_args'] = Agent.add_to_state_args( { 'epoch_penalty': 1 }, **kwargs )
         kwargs['state_args'] = Agent.add_to_state_args( { 'move_distance': 1 }, **kwargs )
@@ -251,9 +254,7 @@ class LivingAgent(Agent,asmObjectStat):
         
 
     def mate(self, partner, mate_params):
-        new_state_args = self.get_obj_state()
-        new_state_args['age'] = 0
-        new_state_args['energy'] = 1
+        new_state_args = self._init_state_args.copy()
         return [ self.__class__( state_args = new_state_args, arena=self.arena ) ]
 
     def stats(self):
@@ -265,8 +266,8 @@ class LivingGAAgent(LivingAgent):
     def __init__(self, **kwargs):
         if( not hasattr(self, 'chromosome') and 'chromosome' not in kwargs ):
             raise ValueError("chromosome not defined for a ".self.__class__.__name__)
-        
-        self.chromosome = Chromosome( kwargs['chromosome'])
+
+        self.chromosome = kwargs['chromosome'] if isinstance( kwargs['chromosome'], Chromosome ) else Chromosome( kwargs['chromosome'])
         del kwargs['chromosome']
 
         super().__init__( **kwargs )
@@ -276,7 +277,12 @@ class LivingGAAgent(LivingAgent):
 
     def get_gene(self,name):
         return self.chromosome.gene_value(name)
-
+    
+    def mate(self, partner, mate_params):
+        new_state_args = self._init_state_args.copy()
+        chrom = self.chromosome.crossover(partner.chromosome)
+        return [ self.__class__( state_args = new_state_args, arena=self.arena, chromosome=chrom ) ]
+        
 
 class Block(NonlivingAgent):
     """
@@ -489,7 +495,7 @@ class Grass2(LivingGAAgent):
                                           [ ('rest|energy_recover',[1,5,10,20],"" ),
                                             # ('mate|energy_penalty',[0,1,2,3,4,5],"" ),
                                             # ('mate|near_by_distance',[0,1,2],""),
-                                            ('see_length',[0,2],"" ),
+                                            ('see_length',[2,3],"" ),
                                           ])
 
         actions = [ mate( { 'mate_species': [Grass2],

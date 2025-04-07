@@ -4,10 +4,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../'
 
 import unittest
 import ppSlib.action as action
+from ppSlib.agent import LivingAgent
 from ppSlib.arena_sync_model import asmState
 
 class TestAction(unittest.TestCase):
     def setUp(self):
+        self.agent = LivingAgent( 'agent', state_args={}, arena=1 )
         self.actions_list = [ action.rest( params={'energy_recover':2, 'max_recoverable_energy': 25} ),
                                 action.move( params={'distance':1,'energy_penalty': 2} ) ]
 
@@ -26,13 +28,13 @@ class TestAction(unittest.TestCase):
         self.assertEqual( uvalue, 2)
         self.assertEqual( state.t_get_attr('energy',None), 5 ) 
 
-        rest.run_action(state, None, params)
+        rest.run_action(self.agent,state, params)
         self.assertEqual( state.t_get_attr('energy',None), 7 )
 
         state = asmState( {'energy': 100})
         uvalue, params = rest.calculate_utility(state)
         self.assertEqual( uvalue, max(0, 10 - 100) )
-        rest.run_action(state, params)
+        rest.run_action(self.agent, state, params)
         self.assertEqual( state.t_get_attr('energy',None), 102 )
 
     def test_rest_action(self):
@@ -44,7 +46,7 @@ class TestAction(unittest.TestCase):
         assert utility == 0
 
         # Test self-effect
-        rest_action.run_action(state, params)
+        rest_action.run_action(self.agent,state, params)
         self.assertEqual( state.t_get_attr('energy',None), 42, "Energy increased by 2 (default recovery value)" )
 
     def test_move_action(self):
@@ -53,7 +55,7 @@ class TestAction(unittest.TestCase):
         utility,params = move_action.calculate_utility(state)
 
         # Test self-effect
-        move_action.run_action(state,params)
+        move_action.run_action(self.agent,state,params)
         assert state.t_get_attr('energy',-1) == 48  # Energy decreased by 1 (default penalty value)
         self.assertEqual(state.t_get_attr('move_distance',-1), 1, "Default distance is 1")
         self.assertIn(state.t_get_attr('direction',-1), [1,2,3,4,6,7,8,9])
@@ -81,6 +83,7 @@ class TestAction(unittest.TestCase):
 
 class TestActionList2(unittest.TestCase):
     def setUp(self):
+        self.agent = LivingAgent( 'agent', state_args={}, arena=1 )
         state = asmState( {'energy': 4})
         rest_action = action.rest( utility_base_value=0,
                                    params={'energy_recover':10, 'max_recoverable_energy':11 } )
@@ -113,12 +116,12 @@ class TestActionList2(unittest.TestCase):
         a = uu[0][0]
         params = uu[0][2]
         b_energy = state.t_get_attr('energy')
-        a.run_action(state,params)
+        a.run_action(self.agent,state,params)
         a_energy = state.t_get_attr('energy')
         self.assertEqual( a_energy , b_energy + 10 )
 
         # commit results on state strucuture
-        a.action_update_phase(state)
+        a.action_update_phase(self.agent,state)
 
         ## try new selection
         utilities = selector.calculate_utility(state=state)
@@ -127,7 +130,7 @@ class TestActionList2(unittest.TestCase):
         # print( ">> "+ str(uu) )
         (a, u, p) = utilities.get_top_action_list()[0]
         self.assertEqual(a.name,'move')
-        a.run_action(state,p)
+        a.run_action(self.agent,state,p)
 
         self.assertEqual( state.t_get_attr('move_distance', 0), 2 )
         self.assertIn( state.t_get_attr('direction', 0), [0] )

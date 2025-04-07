@@ -60,6 +60,9 @@ class Alleles:
 
     def __iter__(self):
         return iter(self.alleles.items())
+    
+    def __len__(self):
+        return len(self.alleles)
 
 class Chromosome:
     def __init__(self, alleles, values=None, mutation_rate=0.001):
