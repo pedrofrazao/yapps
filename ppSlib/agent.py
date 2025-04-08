@@ -77,7 +77,7 @@ class Agent(asmObject):
         if 'state' in kwargs:
             raise ValueError("state not allowed in kwargs")
         elif 'state_args' in kwargs:
-            state = kwargs['state_args']
+            state = kwargs['state_args'].copy()
             del kwargs['state_args']
  
         if 'actions' in kwargs:
@@ -181,17 +181,24 @@ class Agent(asmObject):
     def __str__(self):
         return f"{self.nickname}"
 
+    def _more_internal_state_info(self):
+        return ""
+    
+    def _info_lstmsg(self):
+        return self.get_last_msg()
+
     def info(self, class_name=False, multi_line=False, onlywithmessage=False):
         if( onlywithmessage and len(self.msg) == 0 ):
             return None
         if( class_name is False and multi_line is False ):
-            return f"e{self.energy()} a{self.getsattr('age')} d{self.getsattr("direction",0)} - {self.msg[-1:]}"
+            return f"e{self.energy()} a{self.getsattr('age')} d{self.getsattr("direction",0)} {self._more_internal_state_info()}- {self._info_lstmsg()}"
         else:
             msg = f"{self.nickname}"
             if( class_name ):
                 msg += f" {self.__class__.__name__}"
             msg += f" - e{self.energy()} d{self.getsattr("direction")}"
             if( multi_line ):
+                msg += self._more_internal_state_info()
                 msg += "\n" + "\n".join(self.msg[-3:])
             else:
                 msg += f"\n{self.msg[-1:]}"
@@ -283,6 +290,9 @@ class LivingGAAgent(LivingAgent):
         chrom = self.chromosome.crossover(partner.chromosome)
         return [ self.__class__( state_args = new_state_args, arena=self.arena, chromosome=chrom ) ]
         
+    def _more_internal_state_info(self):
+        return f"chrom: {self.chromosome}"
+
 
 class Block(NonlivingAgent):
     """
@@ -341,6 +351,8 @@ class Glide(LivingAgent):
         super().__init__( volume=33, **kwargs )
 
 
+class GlideGA(LivingGAAgent):
+    pass
 
 class Predator(LivingAgent):
     def __init__(self, see_length=2, **kwargs):

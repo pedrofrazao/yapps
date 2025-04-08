@@ -4,20 +4,23 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../'
 
 import unittest
 import unittest.mock
-from ppSlib.agent import Agent as Agent, Block, Glide, Prey, Carnivore, Trap
+from ppSlib.agent import Agent as Agent, Block, Glide, Prey, Carnivore, Trap,LivingGAAgent, GlideGA
 from ppSlib.action import move, action, mate
+import ppSlib.action as action
 from ppSlib.arena_sync_model import ArenaSyncModel
 
 
+debug = lambda x: print(f">> {str(x)}") if( os.environ.get('DEBUG', False) ) else None
 
-class see_debug(action):
-    def __init__(self, params=None, **kwargs):
-        super().__init__('see_debug', params, **kwargs)
+
+# class see_debug(action):
+#     def __init__(self, params=None, **kwargs):
+#         super().__init__('see_debug', params, **kwargs)
     
-    def action_self_effect(self, a, state, b):
-        # print(str(state))
-        state.t_get_attr('surroundings')
-        return
+#     def action_self_effect(self, a, state, b):
+#         # print(str(state))
+#         state.t_get_attr('surroundings')
+#         return
 
 class TestSee(unittest.TestCase):
     def setUp(self):
@@ -281,6 +284,57 @@ class TestPrey(unittest.TestCase):
 #         self.assertNotIn(p1, self.arena.get_position(0,3))
 #         self.assertIn(c1, self.arena.get_position(0,2))
 #         self.assertEqual(c1.energy(), 17)
+
+
+
+class TestAgent4(unittest.TestCase):
+    def setUp(self):
+        arena = ArenaSyncModel( 6,6 )
+        self.arena = arena
+        num_glider = 4
+
+        agent_attr = {'energy': 10, 'epoch_penalty':1, 'see_length':0}
+
+        a = [action.move({ 'utility_base_value':1, 'distance': 1, 'energy_penalty': 0, 'change_direction_prob': 0 }),
+             action.rest({ 'utility_base_value':0, 'energy_recover': 2, 'max_recoverable_energy': 25 }) ]
+    
+        alleles = [
+                ("move|change_direction_prob", [0,1,1,3,4,7,11], "prob in % to change direction"),
+                ("rest|energy_recover", [0,1,2,3,4,5,6], "energy recover"),
+                ("allele1", [0,1,2,3,4,5,6], "allele1"),
+                ("allele2", [0,1,2,3,4,5,6], "allele2"),
+                ("allele3", [0,1,2,3,4,5,6], "allele3"),
+                ("allele4", [0,1,2,3,4,5,6], "allele4"),
+                ("allele5", [0,1,2,3,4,5,6], "allele5"),
+        ]
+        # gga = type('GlideGA', (LivingGAAgent,), {})
+
+        for _ in range(num_glider):
+            g = GlideGA(dir=6, arena=arena, state_args=agent_attr, actions = a, chromosome=alleles)
+            arena.add_to_random_position(g)
+
+    def test_internal_state(self):
+        # Check if the internal state is set correctly
+        lobj = self.arena.get_objects()
+        for obj in lobj:
+            self.assertEqual(obj.getsattr('energy'), 10)
+            self.assertEqual(obj.getsattr('epoch_penalty'), 1)
+            self.assertEqual(obj.getsattr('see_length'), 0)
+
+        c={}
+        count=0
+        for o in lobj:
+            c[count] = str(o.chromosome)
+            if( count != 0 ):
+                self.assertNotEqual( c[count], c[count-1], "!= chromosome set" )
+            debug( f"agent {count}: {c[count]}" )
+            count += 1
+
+        for obj in lobj:
+            for allele in obj.chromosome.alleles.alleles.keys():
+                self.assertEqual( obj.getsattr(allele), obj.chromosome.gene_value(allele), 
+                                    f"allele {allele} not correct in state" )
+
 
 
 if __name__ == '__main__':
