@@ -1,0 +1,68 @@
+arena:
+  rows: 16
+  cols: 16
+  agents:
+    - type: Glide1
+      class: LivingGAAgent
+      count: 4
+      attributes:
+        energy: 10
+        epoch_penalty: 1
+        see_length: 0
+        volume: 33
+      actions:
+        - name: move
+          params:
+            utility_base_value: 1
+            distance: 1
+            energy_penalty: 0
+            change_direction_prob: 0
+        - name: rest
+          params:
+            utility_base_value: 0
+            energy_recover: 2
+            max_recoverable_energy: 25
+      alleles:
+        - name: move|change_direction_prob
+          values: [0, 1, 1, 3, 4, 7, 11]
+          description: prob in % to change direction
+        - name: rest|energy_recover
+          values: [0, 1, 2, 3, 4, 5, 6]
+          description: energy recover
+    - type: Moving2
+      class: LivingGAAgent
+      count: 2
+      attributes:
+        energy: 10
+        epoch_penalty: 1
+        see_length: 0
+        direction: 6
+        volume: 99
+      actions:
+        - name: move
+          params:
+            utility_base_value: 1
+            distance: 1
+            energy_penalty: 0
+            change_direction_prob: 0
+        - name: rest
+          params:
+            utility_base_value: 0
+            energy_recover: 2
+            max_recoverable_energy: 25
+      alleles:
+        - name: move|change_direction_prob
+          values: [0, 1, 3]
+          description: prob in % to change direction
+        - name: rest|energy_recover
+          values: [2, 3, 4, 5, 6]
+          description: energy recover
+    - type: Rock
+      class: Agent
+      count: 10
+      attributes:
+        energy: 1
+        epoch_penalty: 0
+        see_length: 0
+        volume: 100
+

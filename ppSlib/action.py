@@ -98,18 +98,22 @@ class action_utility_list():
 
 class action:
 
-    # @classmethod
-    # def init_params(cls):
-    #     """initialize the action parameters"""
-    #     return { 'energy_recover': 2, 'max_recoverable_energy': 25 }
-
-    def __init__(self, name, params={}, success_prob=1, utility_base_value=0 ):
-        self.name = name
+    def __init__(self, name, params=None, success_prob=1, utility_base_value=0 ):
+        if params is  None:
+            params = self.get_dict_with_default_values_for_params()
+        
+        self.name = name if name is not None else self.__class__.__name__
         self._default_params = params
         self.success_prob = success_prob
         self.utility_base_value = utility_base_value
         self._param_key = self.__class__.__name__+'_param_key'
         self._resutl_key = self.__class__.__name__+'_result_key'
+
+
+    def get_dict_with_default_values_for_params(self):
+        params = {key: value[0] if isinstance(value, tuple) else value 
+            for key, value in self.get_action_params().items()}
+        return params
 
     # def get_run_params(self,state,default=None):
     #     return state.t_get_attr(self._param_key, default)
@@ -224,6 +228,16 @@ class action:
         #     raise ValueError(f"Setter for parameter {param_name} not found")
         # getattr(state, setter, lambda x: None)(value)
 
+    @classmethod
+    def get_available_actions(cls):
+        """Returns a list of all available action subclasses."""
+        return [subclass.__name__ for subclass in cls.__subclasses__()]
+
+    # @classmethod
+    # def get_action_params(cls):
+    #     """Returns a dictionary of the parameters available for this action."""
+    #     return cls._default_params if hasattr(cls, '_default_params') else {}
+
     def __str__(self):
         return f"action: {self.name} | params: {self.params} | success_prob: {self.success_prob} | utility_base_value: {self.utility_base_value}"
     def __repr__(self):
@@ -237,9 +251,12 @@ class rest(action):
     - max_recoverable_energy
     """
     def __init__(self, params=None, **kwargs):
-        if params is  None:
-            params = { 'energy_recover': 2, 'max_recoverable_energy': 25 }
         super().__init__('rest', params, **kwargs)
+
+    @classmethod
+    def get_action_params(cls):
+        return {'energy_recover': (2, 'Amount of energy recovered per step'),
+                'max_recoverable_energy': (25, 'Maximum energy that can be recovered')}
 
     def calculate_utility(self, state):
         current_energy = state.t_get_attr('energy', 0)
@@ -266,18 +283,18 @@ class mate(action):
     - run_params: { utility_value: x, mate_meta_nearby: (o,dist,dir) }
     """
     def __init__(self, params=None, **kwargs):
-        if params is None:
-            params = { 'mate_species': [],
-                       'utility_value': 10,
-                       'minimal_energy': 0,
-                       'nearby_distance': 0,
-                       'penalty_species': [],
-                       'penalty_distance_factor': 0.5,
-                       'penalty_count_factor': 1,
-                       'energy_penalty': 0,                        
-            }
         super().__init__('mate', params, **kwargs)
 
+    @classmethod
+    def get_action_params(cls):
+        return {'mate_species': ([], 'List of species eligible for mating'),
+                'penalty_species': ([], 'List of species that impose penalties'),
+                'penalty_count_factor': (1, 'Penalty multiplier for the count of penalty species'),
+                'penalty_distance_factor': (0.5, 'Penalty multiplier for the distance of penalty species'),
+                'energy_penalty': (0, 'Energy cost of mating'),
+                'utility_value': (10, 'Base utility value for mating'),
+                'minimal_energy': (0, 'Minimum energy required to mate'),
+                'nearby_distance': (0, 'Maximum distance to consider a mate nearby') }
 
     def calculate_utility(self, state):
         # Get the surrounding species
@@ -364,10 +381,13 @@ class simple_move(action):
     __init__( params = { 'distance': 1, 'energy_penalty': 2, 'change_direction_prob': 0.1}
     """
     def __init__(self, params=None, **kwargs):
-        if params is  None:
-            params = { 'distance': 1, 'energy_penalty': 2, 'change_direction_prob': 0.1}
         super().__init__('move', params, **kwargs)
 
+    @classmethod
+    def get_action_params(cls):
+        return { 'distance': (1,'Distance to move in a single step'),
+                 'energy_penalty': (0,'Energy cost of moving'),
+                 'change_direction_prob': (0.1,'Probability of changing direction during movement') }
 
     def calculate_utility(self, state):
         return self.utility_base_value, None
@@ -405,7 +425,7 @@ class eat(move):
     - 'max_distance': 1
     - 'target_classes': []
     - 'energy_gain': 10
-    - 'penalty_species': [],
+- 'penalty_species': [],
     - 'penalty_distance_factor': 0,
     - 'penalty_count_factor': 0,
 
@@ -421,6 +441,14 @@ class eat(move):
             }
         super().__init__('mate', params, **kwargs)
 
+    @classmethod
+    def get_action_params(cls):
+        return { 'max_distance': 'Maximum distance to target for eating',
+                 'target_classes': 'List of target classes eligible for eating',
+                 'energy_gain': 'Energy gained from eating a target',
+                 'penalty_species': 'List of species that impose penalties',
+                 'penalty_distance_factor': 'Penalty multiplier for the distance of penalty species',
+                 'penalty_count_factor': 'Penalty multiplier for the count of penalty species' }
 
     def calculate_utility(self, state):
         # Get the surrounding species
@@ -478,3 +506,5 @@ class eat(move):
             target.eaten()
 
         return
+
+

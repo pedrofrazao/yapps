@@ -118,10 +118,14 @@ class ArenaObject:
 
 class Arena:
     """A class representing the arena."""
-    def __init__(self, rows, cols, arena_type='torus', max_volume_per_position=100, **kwargs):
+    def __init__(self, rows, cols, arena_type=None, max_volume_per_position=100, **kwargs):
         self.rows = rows
         self.cols = cols
+        if arena_type is None:
+            arena_type = 'torus' if kwargs.get('torus', False) is True else 'nontorus'
+        
         self.type = arena_type
+        
         self.max_volume_per_position = max_volume_per_position
         self.grid = [[[] for _ in range(cols)] for _ in range(rows)]
         self.num_objects = 0

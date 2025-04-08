@@ -13,7 +13,8 @@ class YMLArenaLoader:
         arena_config = config['arena']
         rows = arena_config['rows']
         cols = arena_config['cols']
-        arena = ArenaSyncModel(rows, cols)
+        torus = arena_config.get('torus', True)  # Default to False if not specified
+        arena = ArenaSyncModel(rows, cols, torus=torus)
 
         for agent_config in arena_config['agents']:
             agent_type = agent_config['type']

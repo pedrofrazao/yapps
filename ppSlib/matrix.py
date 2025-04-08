@@ -8,6 +8,7 @@ import ppSlib.ArenaDemo as arena_demo
 from tkinter import filedialog
 # import ppSlib.matrix_config
 import json
+from ppSlib.yml_loader import YMLArenaLoader  # Import the YMLArenaLoader class
 
 class MatrixGUI:
     def __init__(self, rows=16, cols=16):
@@ -18,7 +19,7 @@ class MatrixGUI:
         self.arena = Arena(rows, cols)
         ## TEST ONLY
         for i in range(1):
-            obj = ArenaObject(f"Object{i}")
+            obj = ArenaObject(f"Object{i}",arena=self.arena)
             self.arena.add_to_position(random.randint(0, rows-1), random.randint(0, cols-1), obj)
         ## TEST ONLY
         self.root = tk.Tk()
@@ -256,9 +257,15 @@ class MatrixGUI:
         file_menu.add_command(label="Quit", command=self.exit_application)
 
     def load_configuration(self):
-        file_path = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")])
+        file_path = filedialog.askopenfilename(filetypes=[("YAML files", "*.yml *.yaml")])
         if file_path:
-            self.from_configuration(file_path)
+            try:
+                self.arena = YMLArenaLoader.load_arena_from_yml(file_path)
+                self.rows = self.arena.rows
+                self.cols = self.arena.cols
+                self.update_display()
+            except Exception as e:
+                self.show_error_popup(f"Error loading YAML configuration: {e}")
 
     def save_configuration(self):
         file_path = filedialog.asksaveasfilename(filetypes=[("JSON files", "*.json")])
