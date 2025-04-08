@@ -81,6 +81,9 @@ class ArenaObject:
         self.x = x
         self.y = y
 
+    def position(self):
+        return (self.x, self.y)
+
     def getposition(self):
         return (self.x, self.y)
 
@@ -362,6 +365,13 @@ class Arena:
         msg = [obj.info() for obj in self.get_objects()]
         return msg if list else "\n".join(msg)
     
+    def get_object_types(self):
+        """Get the types of agents in the arena."""
+        object_types = set()
+        for o in self.get_objects():
+            object_types.add(type(o).__name__)
+        return object_types
+
 
 def main():
     """Main function."""

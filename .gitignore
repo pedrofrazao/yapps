@@ -8,3 +8,9 @@ share
 bin
 diagrams/jar
 00todel
+simulations
+tests
+img
+diagrams
+models
+.env/

@@ -1,6 +1,7 @@
 import tkinter as tk
 import random
 import time
+import pygame  # Import pygame for rendering
 from time_series_plot import TimeSeriesPlot  # Import the TimeSeriesPlot class
 from arena import Arena, ArenaObject
 from ppSlib.agent import LivingAgent
@@ -9,6 +10,9 @@ from tkinter import filedialog
 # import ppSlib.matrix_config
 import json
 from ppSlib.yml_loader import YMLArenaLoader  # Import the YMLArenaLoader class
+import os
+
+imagesdir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'images'))
 
 class MatrixGUI:
     def __init__(self, rows=16, cols=16):
@@ -17,16 +21,19 @@ class MatrixGUI:
         self.running = False
         self.last_updates = []  # Attribute to store the list of the last updates
         self.arena = Arena(rows, cols)
-        ## TEST ONLY
-        for i in range(1):
-            obj = ArenaObject(f"Object{i}",arena=self.arena)
-            self.arena.add_to_position(random.randint(0, rows-1), random.randint(0, cols-1), obj)
-        ## TEST ONLY
+        # ## TEST ONLY
+        # for i in range(1):
+        #     obj = ArenaObject(f"Object{i}",arena=self.arena)
+        #     self.arena.add_to_position(random.randint(0, rows-1), random.randint(0, cols-1), obj)
+        # ## TEST ONLY
         self.root = tk.Tk()
         self.root.attributes("-fullscreen", True)  # Force full-screen mode
         self.max_speed = 1  # Maximum speed for the simulation
         self.last_step_time = 0  # Last time the step method was called
         root = self.root
+
+        self.agent_images = {}  # Dictionary to store images for agent types
+        self.pygame_initialized = False  # Track if pygame is initialized
 
         self.create_menu()
         
@@ -70,6 +77,97 @@ class MatrixGUI:
         # Bind the keyboard shortcut to exit the application
         self.root.bind("<Control-q>", self.exit_application)
 
+
+    def load_agent_images(self, imagesdir=imagesdir, agent_types=[]):
+        """Load images for different agent types."""
+        self.agent_images = {}
+        for t in agent_types:
+            try:
+                self.agent_images[t] = pygame.image.load(f"{imagesdir}/{t}.png")
+            except pygame.error as e:
+                print(f"Error loading image for {t}: {e}")
+
+
+    def init_pygame_canvas(self):
+        """Initialize the pygame canvas."""
+        if not self.pygame_initialized:
+            self.root.update_idletasks()  # Ensure the tkinter canvas is fully initialized
+            os.environ['SDL_WINDOWID'] = str(self.canvas.winfo_id())
+            os.environ['SDL_VIDEODRIVER'] = 'x11'
+            try:
+                pygame.init()
+                self.screen = pygame.display.set_mode((self.canvas.winfo_width(), self.canvas.winfo_height()))
+                pygame.display.set_caption("Arena Visualization")
+                self.pygame_initialized = True
+                self.load_agent_images()
+            except Exception as e:
+                self.show_error_popup(f"Error initializing pygame: {e}")
+
+    def draw_matrix(self):
+        """Draw the arena using pygame."""
+        self.init_pygame_canvas()
+        self.screen.fill((255, 255, 255))  # Clear the screen with a white background
+
+        cell_width = self.canvas.winfo_width() // self.cols
+        cell_height = self.canvas.winfo_height() // self.rows
+
+        for x in range(self.rows):
+            for y in range(self.cols):
+                pygame.draw.rect(
+                    self.screen,
+                    (200, 200, 200),  # Light gray for grid lines
+                    pygame.Rect(y * cell_width, x * cell_height, cell_width, cell_height),
+                    1  # Border width
+                )
+
+        for obj in self.arena.get_objects():
+            pos = obj.getposition()
+            if pos:
+                x, y = pos
+                otype = obj.species()
+                if otype in self.agent_images:
+                    image = pygame.transform.scale(self.agent_images[otype], (cell_width, cell_height))
+                    self.screen.blit(image, (y * cell_width, x * cell_height))
+                else:
+                    pygame.draw.rect(
+                        self.screen,
+                        (0, 0, 255),  # Default blue color for unknown agents
+                        pygame.Rect(y * cell_width, x * cell_height, cell_width, cell_height)
+                    )
+
+                # Draw a red dot indicating the direction
+                direction = obj.direction()
+                if direction is not None and direction not in (0,5):  # Skip if no direction
+                    dot_x, dot_y = self.get_dot_position(direction, x, y, cell_width, cell_height)
+                    pygame.draw.circle(self.screen, (255, 0, 0), (dot_x, dot_y), 5)  # Red dot with radius 5
+
+        pygame.display.update()
+
+    def get_dot_position(self, direction, row, col, cell_width, cell_height):
+        """Calculate the position of the red dot based on the direction."""
+        x1 = col * cell_width
+        y1 = row * cell_height
+        x2 = x1 + cell_width
+        y2 = y1 + cell_height
+
+        if direction == 1:  # Top left
+            return x1 + 5, y1 + 5
+        elif direction == 2:  # Top
+            return (x1 + x2) // 2, y1 + 5
+        elif direction == 3:  # Top right
+            return x2 - 5, y1 + 5
+        elif direction == 4:  # Left
+            return x1 + 5, (y1 + y2) // 2
+        elif direction == 6:  # Right
+            return x2 - 5, (y1 + y2) // 2
+        elif direction == 7:  # Bottom left
+            return x1 + 5, y2 - 5
+        elif direction == 8:  # Bottom
+            return (x1 + x2) // 2, y2 - 5
+        elif direction == 9:  # Bottom right
+            return x2 - 5, y2 - 5
+        return None, None  # No dot for direction 5
+
     def show_error_popup(self, message):
         tk.messagebox.showerror("Error", message)
 
@@ -90,86 +188,26 @@ class MatrixGUI:
         self.arena = newarena
         self.update_display()
 
-    def _draw_matrix_cells(self):
-        for o in self.last_updates:
-            x, y, c, t = o.get()
-            if 0 <= x < self.rows and 0 <= y < self.cols:
-                x1 = y * self.cell_width
-                y1 = x * self.cell_height
-                x2 = x1 + self.cell_width
-                y2 = y1 + self.cell_height
-                self.canvas.create_rectangle(x1, y1, x2, y2, fill=c, outline="black")
-                self.canvas.create_text((x1 + x2) / 2, (y1 + y2) / 2, text=t, fill="black")
-                self.cell_colors[(x, y)] = c
-
-    def _draw_matrix_borders(self):
-        matrix_width = self.cols * self.cell_width
-        matrix_height = self.rows * self.cell_height
-        self.canvas.create_rectangle(0, 0, matrix_width, matrix_height, outline="black", width=2)
-
-        for x in range(self.rows):
-            for y in range(self.cols):
-                color = "white"
-                text = ""
-                x1 = y * self.cell_width
-                y1 = x * self.cell_height
-                x2 = x1 + self.cell_width
-                y2 = y1 + self.cell_height
-                self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="black")
-                self.canvas.create_text((x1 + x2) / 2, (y1 + y2) / 2, text=text, fill="black")
-                self.cell_colors[(x, y)] = color
-
-    def draw_matrix(self):
-        self.canvas.delete("all")
-        canvas_width = self.canvas.winfo_width()
-        canvas_height = self.canvas.winfo_height()
-        cell_size = min(canvas_width // self.cols, canvas_height // self.rows)
-        self.cell_width = self.cell_height = cell_size
-        self.cell_colors = {}
-        self._draw_matrix_borders()
-        self._draw_matrix_cells()
-
-    def draw_matrix_new(self):
-        if( self.arena is None ):
-            return
-        
-        if(self.arena_canvas is None):
-            ## init canvas
-            self._init_arena_canvas()
-
-    def _init_arena_canvas(self):
-        # Create a frame for the pygame display
-        self.pygame_frame = tk.Frame(self.root, width=WIDTH, height=HEIGHT)
-        self.pygame_frame.pack()
-        WIDTH, HEIGHT = self.arena
-        os.environ['SDL_WINDOWID'] = str(self.pygame_frame.winfo_id())
-        os.environ['SDL_VIDEODRIVER'] = 'x11'
-        pygame.init()
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        pygame.display.set_caption("Life Game")
-        self.clock = pygame.time.Clock()
-        self.run_game()
-
-
-    def random_color(self):
-        return "#{:06x}".format(random.randint(0, 0xFFFFFF))
-
     def show_popup(self, event):
+        """Show a popup with information about the cell clicked."""
         # Calculate the row and column of the cell under the mouse
-        col = int(event.x // self.cell_width)
-        row = int(event.y // self.cell_height)
+        col = int(event.x // (self.canvas.winfo_width() // self.cols))
+        row = int(event.y // (self.canvas.winfo_height() // self.rows))
         if 0 <= col < self.cols and 0 <= row < self.rows:
-            l = self.arena.get_position(row, col)
-            text_lst = [ f"{o.info(class_name=True, multi_line=True)}" for o in l ]
+            # Get objects at the clicked position
+            objects = self.arena.get_position(row, col)
+            if not objects:
+                return
+
+            # Prepare the text for the popup
+            text_lst = [f"{obj.info(class_name=True, multi_line=True)}" for obj in objects]
             text = "\n".join(text_lst)
 
-            color = self.cell_colors.get((row, col), "white")
-            # Create a popup message
+            # Create a popup window
             popup = tk.Toplevel(self.root)
             popup.wm_overrideredirect(True)
             popup.geometry(f"+{event.x_root + 10}+{event.y_root + 10}")
-            # label = tk.Label(popup, text=f"Cell ({row}, {col})\n{text}", background="yellow")
-            label = tk.Label(popup, text=f"{text}", background="yellow")
+            label = tk.Label(popup, text=text, background="yellow", justify="left")
             label.pack()
             popup.bind("<Motion>", lambda e: popup.destroy())
 
@@ -192,19 +230,20 @@ class MatrixGUI:
         self.text_area.see(tk.END)
 
     def on_resize(self, event):
+        """Handle window resize events."""
+        if self.pygame_initialized:
+            self.screen = pygame.display.set_mode((self.canvas.winfo_width(), self.canvas.winfo_height()))
         self.draw_matrix()
 
     def exit_application(self, event=None):
+        """Exit the application and clean up pygame."""
+        if self.pygame_initialized:
+            pygame.quit()
         self.root.quit()
 
     def update_display(self):
-        self.clear_matrix()  # Clear the matrix before updating
         self.last_updates = self.arena.get_pos_obj_list()
         self.draw_matrix()  # Draw the matrix with the new updates
-
-    def clear_matrix(self):
-        self.canvas.delete("all")
-        self.cell_colors.clear()
 
     def _single_step(self):
         self.step( force_1_step=True )
@@ -263,9 +302,11 @@ class MatrixGUI:
                 self.arena = YMLArenaLoader.load_arena_from_yml(file_path)
                 self.rows = self.arena.rows
                 self.cols = self.arena.cols
+                self.load_agent_images(agent_types=self.arena.get_object_types())
                 self.update_display()
             except Exception as e:
                 self.show_error_popup(f"Error loading YAML configuration: {e}")
+
 
     def save_configuration(self):
         file_path = filedialog.asksaveasfilename(filetypes=[("JSON files", "*.json")])
