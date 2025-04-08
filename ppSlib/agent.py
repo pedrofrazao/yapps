@@ -87,6 +87,12 @@ class Agent(asmObject):
             actions = []
         self._action_selector = action_selection( actions=actions )
         
+        # extract some asmObject attributes
+        for k in ('volume', 'priority'):
+            if k in state:
+                kwargs[k] = state[k]
+                del state[k]
+
         state['age'] = 0
         super().__init__( name, state, **kwargs )
 

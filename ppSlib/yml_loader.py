@@ -17,7 +17,7 @@ class YMLArenaLoader:
 
         for agent_config in arena_config['agents']:
             agent_type = agent_config['type']
-            agent_mainclass = agent_config.get('class','LivingAgent')
+            agent_mainclass = agent_config.get('class', 'LivingAgent')
             count = agent_config['count']
             attributes = agent_config['attributes']
             actions = []
@@ -36,7 +36,8 @@ class YMLArenaLoader:
             agent_mainclass = getattr(agentcls, agent_mainclass)
             agent_class = type(agent_type, (agent_mainclass,), {})
 
-            for _ in range(count):
+            positions = agent_config.get('position', [])
+            for i in range(count):
                 kwargs = {}
                 kwargs['actions'] = actions
                 if alleles is not None:
@@ -44,6 +45,12 @@ class YMLArenaLoader:
 
                 # Create the agent instance
                 agent = agent_class(arena=arena, state_args=attributes, **kwargs)
-                arena.add_to_random_position(agent)
+
+                # Add agent to a specific position if available, otherwise random
+                if i < len(positions):
+                    x, y = positions[i]
+                    arena.add_to_position(x, y, agent)
+                else:
+                    arena.add_to_random_position(agent)
 
         return arena
