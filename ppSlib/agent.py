@@ -112,10 +112,11 @@ class Agent(asmObject):
         self.asmstate.t_set_attr('surroundings', surroundings)
         # select action
         oaction,args_action = self.select_action(self.asmstate)
-        
-        self.add_msg( f"{oaction.name} - {args_action}" )
-        self.asmstate.t_set_attr('ran action', oaction)
-        oaction.run_action(self,self.get_state(),args_action)
+
+        if oaction is not None:
+            self.add_msg( f"{oaction.name} - {args_action}" )
+            self.asmstate.t_set_attr('ran action', oaction)
+            oaction.run_action(self,self.get_state(),args_action)
 
 
     def run_update(self, context=None):
@@ -291,7 +292,7 @@ class LivingGAAgent(LivingAgent):
         return [ self.__class__( state_args = new_state_args, arena=self.arena, chromosome=chrom ) ]
         
     def _more_internal_state_info(self):
-        return f"chrom: {self.chromosome}"
+        return f"c:{self.chromosome}"
 
 
 class Block(NonlivingAgent):

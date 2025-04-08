@@ -13,6 +13,7 @@ from ppSlib.agent import Agent, Carnivore, Prey, Block, Trap, LivingAgent, Grass
 import ppSlib.agent as agent
 import datetime
 import argparse
+from ppSlib.yml_loader import YMLArenaLoader
 
 rows=16
 cols=16
@@ -21,30 +22,19 @@ cols=16
 
 def load_from_file( args ):
     if args.file:
-        with open(args.file, 'r') as file:
-            try:
-                config = json.load(file)
-            except json.JSONDecodeError as e:
-                print(f"Error loading configuration: {e}")
-                sys.exit(1)
-                return
-        
-        newarena = ArenaSyncModel.deserialize(config)
-
-        return newarena
-    else:
-        return None
+        return YMLArenaLoader.load_arena_from_yml(args.file)
 
 
 def _load_demo_grass():
     # Initialize the arena and objects
     arena = ArenaSyncModel(16, 16, sync_model='Sync')
-    num_grass = 4
-    num_cows = 2
+    num_grass = 8
+    num_cows = 4
+    num_wolves = 1
 
     nearby=[]
     for i in range(num_grass):
-        obj = Grass( state_args={ 'min_matetime':25, 'energy':1 }, arena=arena)
+        obj = Grass( state_args={ 'age': randint(0,9), 'min_matetime':10, 'energy':1 }, priority=1, arena=arena)
         if( len(nearby) > 0 ):
             x,y = nearby.pop()
             arena.add_to_position(x, y, obj)
@@ -53,8 +43,12 @@ def _load_demo_grass():
             nearby = obj.see().find_empty_position()
 
     for i in range(num_cows):
-        obj = agent.Cow(arena=arena, state_args={ 'energy':45})
+        obj = agent.Cow(arena=arena, state_args={ 'energy':45}, priority=10)
         arena.add_to_random_position(obj)
+
+    # for i in range(num_wolves):
+    #     obj = agent.Wolf(arena=arena, state_args={ 'energy':45}, priority=20)
+    #     arena.add_to_random_position(obj)
 
     return arena
 

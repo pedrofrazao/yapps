@@ -97,6 +97,12 @@ class action_utility_list():
 
 
 class action:
+
+    # @classmethod
+    # def init_params(cls):
+    #     """initialize the action parameters"""
+    #     return { 'energy_recover': 2, 'max_recoverable_energy': 25 }
+
     def __init__(self, name, params={}, success_prob=1, utility_base_value=0 ):
         self.name = name
         self._default_params = params
