@@ -203,7 +203,7 @@ class action:
                 # v = self._default_params[self.__class__.__name__][param_name]
                 v = self._default_params[param_name]
             except KeyError:
-                raise ValueError(f"Parameter '{param_name}' not found in default params: {str(self._default_params)}")
+                return default
         
         return v
 
@@ -269,6 +269,7 @@ class rest(action):
         new_energy = current_energy + self.get_action_param_value(state,'energy_recover')
         state.t_set_attr('energy', new_energy)
         return None
+    
 
 class mate(action):
     """
@@ -297,6 +298,10 @@ class mate(action):
                 'nearby_distance': (0, 'Maximum distance to consider a mate nearby') }
 
     def calculate_utility(self, state):
+        if state.t_get_attr('age',0) < self.get_action_param_value(state,'minimal_age',0):
+            # not enough age
+            return 0, None
+        
         # Get the surrounding species
         uvalue = self.utility_base_value
         run_params = None
@@ -312,7 +317,17 @@ class mate(action):
                 or state.t_get_attr('energy',0) < self.get_action_param_value(state,'minimal_energy') ):
             # No species found in the surrounding
             return 0, None
-        mate_meta_nearby = same_species[0]
+        
+        mate_meta_nearby = None
+        for mate_meta_nearby in same_species:
+            if mate_meta_nearby[0].t_get_attr('age',0) < self.get_action_param_value(state,'minimal_age',0):
+                # not enough age
+                continue
+
+        if mate_meta_nearby is None:
+            # No mate found in the surrounding
+            return 0, None
+
         state.t_set_attr('mate_meta_nearby', mate_meta_nearby)
 
         if(mate_meta_nearby[1] > self.get_action_param_value(state,'nearby_distance') ):
@@ -425,7 +440,7 @@ class eat(move):
     - 'max_distance': 1
     - 'target_classes': []
     - 'energy_gain': 10
-- 'penalty_species': [],
+    - 'penalty_species': [],
     - 'penalty_distance_factor': 0,
     - 'penalty_count_factor': 0,
 
@@ -433,22 +448,16 @@ class eat(move):
     - target: (agent, distance, direction)
     """
     def __init__(self, params=None, **kwargs):
-        if params is None:
-            params = { 
-                'max_distance': 0,
-                'target_classes': [],
-                'energy_gain': 10,
-            }
         super().__init__('mate', params, **kwargs)
 
     @classmethod
     def get_action_params(cls):
-        return { 'max_distance': 'Maximum distance to target for eating',
-                 'target_classes': 'List of target classes eligible for eating',
-                 'energy_gain': 'Energy gained from eating a target',
-                 'penalty_species': 'List of species that impose penalties',
-                 'penalty_distance_factor': 'Penalty multiplier for the distance of penalty species',
-                 'penalty_count_factor': 'Penalty multiplier for the count of penalty species' }
+        return { 'max_distance': (0,'Maximum distance to target for eating'),
+                 'target_classes': ([],'List of target classes eligible for eating'),
+                 'energy_gain': (10,'Energy gained from eating a target'),
+                 'penalty_species': ([],'List of species that impose penalties'),
+                 'penalty_distance_factor': (0.5,'Penalty multiplier for the distance of penalty species'),
+                 'penalty_count_factor': (1,'Penalty multiplier for the count of penalty species') }
 
     def calculate_utility(self, state):
         # Get the surrounding species
@@ -506,5 +515,3 @@ class eat(move):
             target.eaten()
 
         return
-
-

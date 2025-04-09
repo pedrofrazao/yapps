@@ -198,3 +198,6 @@ class asmObject(ArenaObject,smRole):
 
     def __str__(self):
         return self.name + " " + str(self.state)
+    
+    def extra_info(self):
+        return self.asmstate.__dump__()

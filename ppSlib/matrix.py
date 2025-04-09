@@ -73,7 +73,7 @@ class MatrixGUI:
         # Bind the configure event to resize the matrix cells
         self.root.bind("<Configure>", self.on_resize)
         # Bind the mouse click event to show popup
-        self.canvas.bind("<Button-1>", self.show_popup)
+        self.bind_mouse_events()  # Bind mouse events
         # Bind the keyboard shortcut to exit the application
         self.root.bind("<Control-q>", self.exit_application)
 
@@ -188,7 +188,7 @@ class MatrixGUI:
         self.arena = newarena
         self.update_display()
 
-    def show_popup(self, event):
+    def show_popup(self, event, secondary=False):
         """Show a popup with information about the cell clicked."""
         # Calculate the row and column of the cell under the mouse
         col = int(event.x // (self.canvas.winfo_width() // self.cols))
@@ -200,7 +200,10 @@ class MatrixGUI:
                 return
 
             # Prepare the text for the popup
-            text_lst = [f"{obj.info(class_name=True, multi_line=True)}" for obj in objects]
+            if secondary:
+                text_lst = [f"Extra Info:\n{obj.info(class_name=True, multi_line=True)}\n{obj.extra_info()}" for obj in objects]
+            else:
+                text_lst = [f"{obj.info(class_name=True, multi_line=True)}" for obj in objects]
             text = "\n".join(text_lst)
 
             # Create a popup window
@@ -210,6 +213,11 @@ class MatrixGUI:
             label = tk.Label(popup, text=text, background="yellow", justify="left")
             label.pack()
             popup.bind("<Motion>", lambda e: popup.destroy())
+
+    def bind_mouse_events(self):
+        """Bind mouse events for primary and secondary buttons."""
+        self.canvas.bind("<Button-1>", lambda event: self.show_popup(event, secondary=False))  # Primary button
+        self.canvas.bind("<Button-3>", lambda event: self.show_popup(event, secondary=True))   # Secondary button
 
     def start(self):
         # self.log_message("Start button clicked")
@@ -295,8 +303,11 @@ class MatrixGUI:
         file_menu.add_separator()
         file_menu.add_command(label="Quit", command=self.exit_application)
 
-    def load_configuration(self):
-        file_path = filedialog.askopenfilename(filetypes=[("YAML files", "*.yml *.yaml")])
+
+    def load_configuration(self,file_path=None):
+        if file_path is None:
+            file_path = filedialog.askopenfilename(filetypes=[("YAML files", "*.yml *.yaml")])
+
         if file_path:
             try:
                 self.arena = YMLArenaLoader.load_arena_from_yml(file_path)

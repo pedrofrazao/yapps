@@ -1,11 +1,11 @@
 # agent.direction_selector
-from random import randint
+from random import randint, choice
 
-def random_direction_selector( context, curr_dir=None, prob_change=30 ):
+def random_direction_selector( curr_dir=None, prob_change=30 ):
     if curr_dir is None:
-        return randint(1,9)
-    elif randint(1,100) > prob:
+        return choice([1,2,3,4,6,7,8,9])
+    elif randint(1) > prob:
         return curr_dir
     else:
-        return randint(1,9)
+        return choice([1,2,3,4,6,7,8,9])
 

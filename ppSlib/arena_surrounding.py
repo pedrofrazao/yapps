@@ -33,10 +33,11 @@ class Surrounding:
         """
         return: list of object: [(obj1, distance, direction), (obj2, distance, direction), ...]
         """
+        checkclass = lambda o,c: True if o.__class__.__name__ == c else False
         if only_class is not None and isinstance(only_class, list):
-            return [(o,ds,dr) for o,ds,dr in self.objects_meta if any(isinstance(o, cls) for cls in only_class)]
+            return [(o,ds,dr) for o,ds,dr in self.objects_meta if any(checkclass(o, cls) for cls in only_class)]
         elif only_class is not None:
-            return [(o,ds,dr) for o,ds,dr in self.objects_meta if isinstance(o, only_class)]
+            return [(o,ds,dr) for o,ds,dr in self.objects_meta if checkclass(o, only_class)]
         else:
             return self.objects_meta
 

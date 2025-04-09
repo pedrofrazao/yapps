@@ -124,6 +124,8 @@ class Agent(asmObject):
             self.asmstate.t_set_attr('ran action', oaction)
             oaction.run_action(self,self.get_state(),args_action)
 
+    def age(self):
+        return self.getsattr('age')
 
     def run_update(self, context=None):
         state = self.get_state()
@@ -261,15 +263,22 @@ class LivingAgent(Agent,asmObjectStat):
         kwargs['state_args'] = Agent.add_to_state_args( { 'epoch_penalty': 1 }, **kwargs )
         kwargs['state_args'] = Agent.add_to_state_args( { 'move_distance': 1 }, **kwargs )
         kwargs['state_args'] = Agent.add_to_state_args({'age': 0}, **kwargs)
+        if dir == 5:
+            dir = random_direction_selector()
+
         kwargs['state_args'] = Agent.add_to_state_args( { 'direction': dir, 'epoch_penalty': 0 }, **kwargs )
 
         super().__init__( **kwargs )
         asmObjectStat.__init__(self, **kwargs)
         
+    def mated(self):
+        self.asmstate.t_set_attr('mated', True)
 
-    def mate(self, partner, mate_params):
+    def mate(self, partner, mate_params, **kwargs):
+        partner.mated()
         new_state_args = self._init_state_args.copy()
-        return [ self.__class__( state_args = new_state_args, arena=self.arena ) ]
+        return [ self.__class__( state_args = new_state_args, arena=self.arena,
+                                 actions = self._action_selector.actions_list, **kwargs ) ]
 
     def stats(self):
         return [self.energy(),self.getsattr('age'),self.direction(), self.get_last_msg()]

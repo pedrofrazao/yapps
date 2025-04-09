@@ -118,6 +118,8 @@ class ArenaObject:
 {self.name} @ ({self.x}, {self.y})
 """ + end.join(self.msg)
 
+    def extra_info(self):
+        return ""
 
 class Arena:
     """A class representing the arena."""
