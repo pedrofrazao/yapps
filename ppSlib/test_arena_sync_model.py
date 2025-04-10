@@ -73,7 +73,7 @@ class TestArenaSyncModelUpdate(unittest.TestCase):
         o1.run_interaction( context=0 )
         # 'e' values after interaction but before update
         self.assertEqual( 1, o1.getsattr('e'), "no change on the internal state" )
-        self.assertIsNone( o1.asmstate._next_state, "no next state set" )
+        self.assertEqual( {}, o1.asmstate._next_state, "no next state set" )
 
         o1.run_interaction( context=1 )
         self.assertEqual( 1, o1.getsattr('e'), "no change on the internal state" )
@@ -83,6 +83,22 @@ class TestArenaSyncModelUpdate(unittest.TestCase):
         o2.run_update()
         self.assertEqual( 2, o2.getsattr('e'), "change on the internal state" )
 
+
+
+class TestASMState(unittest.TestCase):
+    def setUp(self):
+        self.state = asmState({ 'e': 1, 'f': 0 })
+
+    def test_switch_state(self):
+        self.assertEqual( 1, self.state.getsattr('e') )
+        self.state.switch_to_next_state()
+        self.assertEqual( 1, self.state.getsattr('e') )
+
+    def test_set_get(self):
+        self.state.setsattr('e', 2)
+        self.assertEqual( 1, self.state.getsattr('e') )
+        self.state.switch_to_next_state()
+        self.assertEqual( 2, self.state.getsattr('e' ) )
 
 # class TestArenaRun(unittest.TestCase):
 #     def setUp(self):
@@ -120,4 +136,4 @@ class TestArenaSyncModelUpdate(unittest.TestCase):
 #             self.assertEqual( 1, self.arena.num_objects )
 
 if __name__ == '__main__':
-    unittest.main( verbosity=4 )
+    unittest.main( verbosity=2 )

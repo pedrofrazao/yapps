@@ -320,7 +320,8 @@ class LivingGAAgent(LivingAgent):
         super().__init__( **kwargs )
         
         ## apply the chromosome to the state
-        self.chromosome.phenotype(self.get_state())
+        phenotype = self.chromosome.phenotype()
+        self.asmstate.state.update(phenotype)
 
     def get_gene(self,name):
         return self.chromosome.gene_value(name)

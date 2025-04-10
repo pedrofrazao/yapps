@@ -121,7 +121,7 @@ class action:
         # utility_base_value is stored on the params
         # self.utility_base_value = utility_base_value
         self._param_key = self.__class__.__name__+'_param_key'
-        self._resutl_key = self.__class__.__name__+'_result_key'
+        self._result_key = self.__class__.__name__+'_result_key'
         self._order_value = order_value
 
     def utility_base_value(self,state):
@@ -140,10 +140,10 @@ class action:
     #     state.t_set_attr(self._param_key, params)
 
     def get_action_result(self,state,default=None):
-        return state.t_get_attr(self._resutl_key, default)
+        return state.t_get_attr(self._result_key, default)
     
     def set_action_result(self,state,result):
-        state.t_set_attr(self._resutl_key, result)
+        state.t_set_attr(self._result_key, result)
 
     def calculate_utility(self, state):
         """calculate the utility of the action
@@ -215,7 +215,7 @@ class action:
         if not found, return action value
         """
         key = self.__class__.__name__ + '|' + param_name
-        return state.t_get_attr(key, self.params.get('param_name',self.params.get(param_name,default)) )
+        return state.t_get_attr(key, self.params.get(param_name,self.params.get(param_name,default)) )
 
 
     def get_current_state_value_for(self, state, param_name, default=None):
@@ -248,6 +248,21 @@ class action:
     # def get_action_params(cls):
     #     """Returns a dictionary of the parameters available for this action."""
     #     return cls._default_params if hasattr(cls, '_default_params') else {}
+
+
+    def get_request_move(self, state):
+        """return the request move parameters"""
+        return state.t_get_attr('request_move', { 'meta': (None,None,None), 'utility':-1} )
+
+
+    def request_move(self, state, meta, utility):
+        if self.get_request_move(state)['utility'] > utility:
+            # not enough utility
+            return
+        
+        state.t_set_attr('request_move', { 'meta': meta, 'utility': utility} )
+        return
+
 
     def __str__(self):
         return f"action: {self.name}"
@@ -375,7 +390,7 @@ class mate(action):
         }
 
         if request_move:
-            move.request_move(state, mate_meta_nearby[2], uvalue)
+            self.request_move(state, mate_meta_nearby, uvalue)
             return -1, None
         else:
             # state.t_set_attr('run_params', run_params)
@@ -438,22 +453,6 @@ class simple_move(action):
         # the order value is used to sort the actions, and for the move the be after action that need to request a move
         super().__init__('move', params, order_value=75, **kwargs)
 
-    @classmethod
-    def get_request_move(cls, state):
-        """return the request move parameters"""
-        return state.t_get_attr('request_move', (None,-1,None))
-
-    @classmethod
-    def request_move(cls, state, direction, utility, distance=None):
-        if cls.get_request_move(state)[2] > utility:
-            # not enough utility
-            return
-        
-        if distance is None:
-            distance = cls.get_action_param_value(state, 'distance')
-        
-        state.t_set_attr('request_move', (direction, utility, distance))
-        return
 
     @classmethod
     def get_action_params(cls):
@@ -462,10 +461,14 @@ class simple_move(action):
                  'change_direction_prob': (0.1,'Probability of changing direction during movement') }
 
     def calculate_utility(self, state):
-        dr, ut, ds = self.get_request_move(state)
-        if ut > self.utility_base_value(state):
+        req = self.get_request_move(state)
+        (_,ds,dr) = req['meta']
+        utility = req['utility']
+        if ds is None:
+            ds = self.get_action_param_value(state,'distance',0)
+        if utility > self.utility_base_value(state):
             # request move is better than the base utility
-            return ut, { 'dir': dr, 'dist': ds }
+            return utility, { 'dir': dr, 'dist': ds }
         else:
             return self.utility_base_value(state), None
 
@@ -479,19 +482,22 @@ class simple_move(action):
             # already defined move
             return params
 
+        distance = self.get_action_param_value(state,'distance')
+        # get the current direction
+        new_direction = state.t_get_attr('direction', None)
         if random() < self.get_action_param_value(state,'change_direction_prob'):
             # change direction
             new_direction = choice([1,2,3,4,6,7,8,9])
-            state.t_set_attr('direction', new_direction)
-        state.t_set_attr('move_distance', self.get_action_param_value(state,'distance'))
-        return { 'dir': state.t_get_attr('direction', None),
-                 'dist': self.get_action_param_value(state,'distance'), }
+        
+        state.t_set_attr('direction', new_direction)
+        state.t_set_attr('move_distance', distance)
+        return { 'direction': new_direction, 'move_distance': distance }
 
 
     def do_update(self, agent, state, result):
         if result is not None:
-            direction = result['dir']
-            distance = result['dist']
+            direction = result['direction']
+            distance = result['move_distance']
             agent.move(direction=direction, distance=distance)
         return
 

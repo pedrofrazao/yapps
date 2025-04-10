@@ -29,12 +29,15 @@ class TestAction(unittest.TestCase):
         self.assertEqual( state.t_get_attr('energy',None), 5 ) 
 
         rest.run_action(self.agent,state, params)
-        self.assertEqual( state.t_get_attr('energy',None), 7 )
+        self.assertEqual( state.t_get_attr('energy',None), 5,"unchanged before update" )
+        state.switch_to_next_state()
+        self.assertEqual( state.t_get_attr('energy',None), 7,"+ after rest" )
 
         state = asmState( {'energy': 100})
         uvalue, params = rest.calculate_utility(state)
         self.assertEqual( uvalue, max(0, 10 - 100) )
         rest.run_action(self.agent, state, params)
+        state.switch_to_next_state()
         self.assertEqual( state.t_get_attr('energy',None), 102 )
 
     def test_rest_action(self):
@@ -47,6 +50,7 @@ class TestAction(unittest.TestCase):
 
         # Test self-effect
         rest_action.run_action(self.agent,state, params)
+        state.switch_to_next_state()
         self.assertEqual( state.t_get_attr('energy',None), 42, "Energy increased by 2 (default recovery value)" )
 
     def test_move_action(self):
@@ -56,8 +60,11 @@ class TestAction(unittest.TestCase):
 
         # Test self-effect
         move_action.run_action(self.agent,state,params)
-        assert state.t_get_attr('energy',-1) == 48  # Energy decreased by 1 (default penalty value)
-        self.assertEqual(state.t_get_attr('move_distance',-1), 1, "Default distance is 1")
+        r = move_action.get_action_result(state)
+        self.assertEqual(r.get('move_distance',-1), 1, "Default distance is 1")
+        self.assertIn(r.get('direction',-1), [1,2,3,4,6,7,8,9], "valid direction")
+        state.switch_to_next_state()
+        self.assertEqual( state.t_get_attr('energy',-1),48 , "Energy decreased by 1 (default penalty value)" )
         self.assertIn(state.t_get_attr('direction',-1), [1,2,3,4,6,7,8,9])
 
     def test_action_selection(self):
@@ -115,6 +122,7 @@ class TestActionList2(unittest.TestCase):
         params = uu[0][2]
         b_energy = state.t_get_attr('energy')
         a.run_action(self.agent,state,params)
+        state.switch_to_next_state()
         a_energy = state.t_get_attr('energy')
         self.assertEqual( a_energy , b_energy + 10 )
 

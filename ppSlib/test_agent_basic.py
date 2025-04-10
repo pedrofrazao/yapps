@@ -44,6 +44,7 @@ class TestGlide(unittest.TestCase):
         
         self.assertEqual(g1.energy(), 8 )
         self.assertEqual(g1.getposition(), (0, 3) )
+        self.assertEqual(g1.age(), 2 )
         self.assertEqual(g1.getsattr('age'), 2 )
         debug( self.arena )
 

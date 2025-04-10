@@ -46,7 +46,7 @@ class ArenaSyncModel(Arena,asmStats):
 class asmState():
     def __init__(self, state, asmobject=None):
         self.state = state
-        self._next_state = None
+        self._next_state = {}
         self._tmp = {}
         self._tmp_tick = {}
         self.tick = 0
@@ -65,22 +65,22 @@ class asmState():
         return self.state
 
     def get_next_state(self):
-        if self._next_state is None:
-            self._next_state = self.state.copy()
         return self._next_state
 
     def setsattr(self, attr, value):
-        self.state[attr] = value
+        self._next_state[attr] = value
 
     def getsattr(self, attr, default=None):
         return self.state.get(attr, default)
 
     def t_set_attr(self, attr, value, tick_validity=None):
         """temporary set attribute"""
-        ns = self.get_next_state()
-        if attr in ns:
-            ns[attr] = value
+        if( attr in self._next_state
+            or attr in self.state ):
+            # is a permanent attribute
+            self.setsattr(attr, value)
         else:
+            # is a temporary attribute
             self._tmp[attr] = value
             if tick_validity is not None:
                 self._tmp_tick[attr] = self.tick + tick_validity
@@ -89,9 +89,6 @@ class asmState():
     def t_get_attr(self, attr, default=None):
         """temporary get attribute"""
         v = self._tmp.get(attr, None)
-        if v is None:
-            ns = self.get_next_state()
-            v = ns.get(attr, None)
         if v is None:
             v = self.getsattr(attr, default)
         return v
@@ -130,11 +127,12 @@ class asmState():
     def switch_to_next_state(self):
         self.tick += 1
         if self._next_state is not None:
-            self.state = self._next_state
-            self._next_state = None
+            self.state.update(self._next_state)
+            self._next_state = {}
         new_tmp = {}
-        for k,v in self._tmp_tick.items():
-            if self.tick <= v:
+        lk = list(self._tmp_tick.keys())
+        for k in lk:
+            if self.tick <= self._tmp_tick[k]:
                 # copy data to the next state
                 new_tmp[k] = self._tmp[k]
             else:
@@ -196,9 +194,19 @@ class asmObject(ArenaObject,smRole):
         ns = self.asmstate.get_next_state()
         ns[attr] = value
 
+    def get_newest_value(self, attr, default=None):
+        # get the newest value of the attribute
+        # if it is a new state value, return it
+        # else return the current value
+        ns = self.get_next_obj_state()
+        return ns.get(attr, self.getsattr(attr,default))
+    
+
     def add2sattr(self, attr, value):
-        ns = self.asmstate.get_next_state()
-        ns[attr] = ns.get(attr,0) + value
+        # need to get new newest value
+        v = self.get_newest_value(attr,0)
+        self.setsattr(attr, v + value)
+
 
     def run_interaction(self, context=None):
         self.empty_msg()
