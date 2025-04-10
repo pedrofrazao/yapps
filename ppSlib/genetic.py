@@ -73,18 +73,21 @@ class Chromosome:
         else:
             raise ValueError("Alleles must be a list or an Alleles instance")
 
-        self.genes = {}
-        if values:
+        _genes = {}
+        if values is not None:
             for n,v in values.items():
                 if not self.alleles._valid_names(n):
                     raise ValueError(f"Allele {n} not found")
                 if not self.alleles._valid_value(n, v):
                     raise ValueError(f"Value {v} not valid for allele {n}")
-                self.genes[n] = v
-        else:
-            for a in self.alleles:
-                genename = a[0]
-                self.genes[genename] = self.alleles.random_value_for(genename)
+                _genes[n] = v
+        
+        for gname in self.alleles.alleles.keys():
+            if gname not in _genes:
+                _genes[gname] = self.alleles.random_value_for(gname)
+        
+        self.genes = _genes        
+
 
     def __str__(self):
         return "|".join(str(value) for value in self.genes.values())
@@ -92,13 +95,30 @@ class Chromosome:
 
     def gene_value(self, name):
         return self.genes[name]
+    
 
-    def crossover(self, other):
-        new_genes = {}
+    def crossover(self, other, number=1):
+        new_a_genes = {}
+        new_b_genes = {}
+
+        genes_list = list(self.genes.keys())
+        crossover_points = [ choice(genes_list) for _ in range(number) ]
+
+        a_genes = self.genes
+        b_genes = other.genes
         for a in self.genes.keys():
-            new_genes[a] = self.gene_value(a) if randint(0,1) == 0 else other.gene_value(a)
+            if a in crossover_points:
+                t = a_genes
+                a_genes = b_genes
+                b_genes = t
+
+            new_a_genes[a] = a_genes[a]
+            new_b_genes[a] = b_genes[a]
+
+        new_genes = choice([new_a_genes, new_b_genes])
         return Chromosome(self.alleles, new_genes)
     
+
     def mutation(self, rate=None):
         if rate is None:
             rate = self.mutation_rate
@@ -114,3 +134,40 @@ class Chromosome:
         for a in self.genes.keys():
             d[a] = self.genes[a]
         return d
+    
+    def sexual_reproduction(self, other, **kwargs):
+        """
+        sexual reproduction with another chromosome
+        """
+        new_chromosome = self.crossover(other, kwargs.get('num_cross_points', 1))
+
+        new_chromosome.mutation(kwargs.get('mutation_rate',0))
+        
+        return new_chromosome
+
+    @classmethod
+    def _approx_crossover_count(cls, chrom, other, new_chromosome):
+        """
+        count the number of crossover points
+        """
+        cross_counter = 0
+        mutation_counter = 0
+        segment1 = True
+        for g in chrom.genes.keys():
+            if( new_chromosome.genes[g] == chrom.genes[g]
+                and new_chromosome.genes[g] != other.genes[g] ):
+                if( segment1 is False ):
+                    cross_counter += 1
+                    segment1 = True
+            elif( new_chromosome.genes[g] == other.genes[g]
+                and new_chromosome.genes[g] != chrom.genes[g] ):
+                if( segment1 is True ):
+                    cross_counter += 1
+                    segment1 = False
+            elif( new_chromosome.genes[g] != chrom.genes[g]
+                and new_chromosome.genes[g] != other.genes[g] ):
+                mutation_counter += 1
+            else:
+                pass
+
+        return cross_counter, mutation_counter
