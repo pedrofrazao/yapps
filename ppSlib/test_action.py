@@ -63,7 +63,7 @@ class TestAction(unittest.TestCase):
     def test_action_selection(self):
         state = asmState( {'energy': 50, 'direction': 0})
         rest_action = action.rest()
-        move_action = action.move({ 'distance': 1, 'energy_penalty': 2, 'change_direction_prob': 1}, utility_base_value=6)
+        move_action = action.move({ 'distance': 1, 'energy_penalty': 2, 'change_direction_prob': 1, 'utility_base_value':6})
 
         selector = action.action_selection(actions=[rest_action, move_action])
 
@@ -85,10 +85,8 @@ class TestActionList2(unittest.TestCase):
     def setUp(self):
         self.agent = LivingAgent( 'agent', state_args={}, arena=1 )
         state = asmState( {'energy': 4})
-        rest_action = action.rest( utility_base_value=0,
-                                   params={'energy_recover':10, 'max_recoverable_energy':11 } )
-        move_action = action.move( utility_base_value=5,
-                                   params={'distance':2, 'energy_penalty': 2, 'change_direction_prob':0 } )
+        rest_action = action.rest( params={'energy_recover':10, 'max_recoverable_energy':11, 'utility_base_value': 0, } )
+        move_action = action.move( params={'distance':2, 'energy_penalty': 2, 'change_direction_prob':0, 'utility_base_value':5} )
  
         selector = action.action_selection(actions=[rest_action])
         selector.add_action(move_action)

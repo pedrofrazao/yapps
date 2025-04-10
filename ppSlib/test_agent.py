@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../'
 
 import unittest
 import unittest.mock
-from ppSlib.agent import Agent as Agent, Block, Glide, Prey, Carnivore, Trap,LivingGAAgent, GlideGA
+from ppSlib.agent import Agent as Agent, Block, Glide, LivingGAAgent, GlideGA
 from ppSlib.action import move, action, mate
 import ppSlib.action as action
 from ppSlib.arena_sync_model import ArenaSyncModel

@@ -48,6 +48,8 @@ class asmState():
         self.state = state
         self._next_state = None
         self._tmp = {}
+        self._tmp_tick = {}
+        self.tick = 0
         # self.asmobject = weakref.ref(asmobject) if asmobject is not None else None
 
 
@@ -73,13 +75,15 @@ class asmState():
     def getsattr(self, attr, default=None):
         return self.state.get(attr, default)
 
-    def t_set_attr(self, attr, value):
+    def t_set_attr(self, attr, value, tick_validity=None):
         """temporary set attribute"""
         ns = self.get_next_state()
         if attr in ns:
             ns[attr] = value
         else:
             self._tmp[attr] = value
+            if tick_validity is not None:
+                self._tmp_tick[attr] = self.tick + tick_validity
         return
     
     def t_get_attr(self, attr, default=None):
@@ -99,6 +103,17 @@ class asmState():
             return None
         return s
 
+    def mate_marker(self,v=None,tick_validity=1):
+        """get the mate marker of the object"""
+        if v is not None:
+            self.t_set_attr('mate_marker', v)
+            # plus 1 because the t_set_attr already store for one tick
+            # tick_validation is extra duration
+            self._tmp_tick['mate_marker'] = self.tick + tick_validity + 1
+            return
+        else:
+            return self.t_get_attr('mate_marker', False)
+
     # def saw(self, species=False):
     #     """get the surrounding of the object
     #     species: if True, return only elements of a certain species
@@ -113,10 +128,19 @@ class asmState():
     #         return s
 
     def switch_to_next_state(self):
+        self.tick += 1
         if self._next_state is not None:
             self.state = self._next_state
             self._next_state = None
-        self._tmp = {}
+        new_tmp = {}
+        for k,v in self._tmp_tick.items():
+            if self.tick <= v:
+                # copy data to the next state
+                new_tmp[k] = self._tmp[k]
+            else:
+                # remove expired data
+                del self._tmp_tick[k]
+        self._tmp = new_tmp
         return
 
     def __setitem__(self, key, value):

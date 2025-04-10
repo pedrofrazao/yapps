@@ -122,6 +122,8 @@ class Chromosome:
     def mutation(self, rate=None):
         if rate is None:
             rate = self.mutation_rate
+        if rate == 0:
+            return self
         for a in self.genes.keys():
             if randint(0, 1) < rate:
                 self.genes[a] = self.alleles.random_value_for(a)

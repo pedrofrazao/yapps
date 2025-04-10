@@ -29,15 +29,23 @@ class action_selection():
             if not isinstance(a, action):
                 raise ValueError("action must be an instance of action class")
             self.actions_list.append(a)
-    
+
         self.min_uvalue = 0
         self.max_uvalue = 100
+
+        self._reorder_actions()
+
+
+    def _reorder_actions(self):
+        "order the action by the order value"
+        self.actions_list = sorted(self.actions_list, key=lambda x: x._order_value, reverse=False)
 
 
     def add_action(self, naction):
         if not isinstance(naction, action):
             raise ValueError("action must be an instance of action class")
         self.actions_list.append(naction)
+        self._reorder_actions()
 
 
     def __limit_calculate_utility(self, uvalue):
@@ -52,6 +60,9 @@ class action_selection():
         utility_by_action = {}
         for a in self.actions_list:
             uvalue, params = a.calculate_utility(state)
+            if uvalue < self.min_uvalue:
+                # action not available
+                continue
             utility_by_action[a.name] = (a,self.__limit_calculate_utility(uvalue),params)
 
         return action_utility_list(utility_by_action)
@@ -98,17 +109,24 @@ class action_utility_list():
 
 class action:
 
-    def __init__(self, name, params=None, success_prob=1, utility_base_value=0 ):
-        if params is  None:
-            params = self.get_dict_with_default_values_for_params()
-        
+    def __init__(self, name, params=None, success_prob=1, order_value=25 ):
+        self.params = self.get_dict_with_default_values_for_params()
+        if params is not None:
+            # replace default values with params
+            self.params.update( params )
+
         self.name = name if name is not None else self.__class__.__name__
         self._default_params = params
         self.success_prob = success_prob
-        self.utility_base_value = utility_base_value
+        # utility_base_value is stored on the params
+        # self.utility_base_value = utility_base_value
         self._param_key = self.__class__.__name__+'_param_key'
         self._resutl_key = self.__class__.__name__+'_result_key'
+        self._order_value = order_value
 
+    def utility_base_value(self,state):
+        """return the base utility value of the action"""
+        return self.get_action_param_value(state,'utility_base_value',0)
 
     def get_dict_with_default_values_for_params(self):
         params = {key: value[0] if isinstance(value, tuple) else value 
@@ -131,7 +149,7 @@ class action:
         """calculate the utility of the action
         return utility_value, run_action_params
         """
-        return self.utility_base_value,None
+        return self.utility_base_value(state),None
 
 
     def __action_run_success(self, state):
@@ -194,18 +212,11 @@ class action:
     
     def get_action_param_value(self, state, param_name, default=None):
         """get the action parameter value from the state
-        if not found, return default value
+        if not found, return action value
         """
         key = self.__class__.__name__ + '|' + param_name
-        v = state.t_get_attr(key, None)
-        if v is None:
-            try:
-                # v = self._default_params[self.__class__.__name__][param_name]
-                v = self._default_params[param_name]
-            except KeyError:
-                return default
-        
-        return v
+        return state.t_get_attr(key, self.params.get('param_name',self.params.get(param_name,default)) )
+
 
     def get_current_state_value_for(self, state, param_name, default=None):
         """get the current state value for the parameter"""
@@ -239,9 +250,9 @@ class action:
     #     return cls._default_params if hasattr(cls, '_default_params') else {}
 
     def __str__(self):
-        return f"action: {self.name} | params: {self.params} | success_prob: {self.success_prob} | utility_base_value: {self.utility_base_value}"
+        return f"action: {self.name}"
     def __repr__(self):
-        return f"action: {self.name} | params: {self.params} | success_prob: {self.success_prob} | utility_base_value: {self.utility_base_value}"
+        return f"action: {self.name} | params: {self.params} | success_prob: {self.success_prob}"
 
 
 class rest(action):
@@ -281,7 +292,7 @@ class mate(action):
 
     t_attrs (via calculate_utility):
     - mate_meta_nearby: (agent, distance, direction)
-    - run_params: { utility_value: x, mate_meta_nearby: (o,dist,dir) }
+    - run_params: { utility_base_value: x, mate_meta_nearby: (o,dist,dir) }
     """
     def __init__(self, params=None, **kwargs):
         super().__init__('mate', params, **kwargs)
@@ -293,46 +304,63 @@ class mate(action):
                 'penalty_count_factor': (1, 'Penalty multiplier for the count of penalty species'),
                 'penalty_distance_factor': (0.5, 'Penalty multiplier for the distance of penalty species'),
                 'energy_penalty': (0, 'Energy cost of mating'),
-                'utility_value': (10, 'Base utility value for mating'),
+                'utility_base_value': (10, 'Base utility value for mating'),
                 'minimal_energy': (0, 'Minimum energy required to mate'),
                 'nearby_distance': (0, 'Maximum distance to consider a mate nearby') }
 
-    def calculate_utility(self, state):
+    def mate_available(self, state):
+        """check if mating is available
+        return True/False
+        """
+        if state.mate_marker():
+            # already marked for mating
+            return False
+
         if state.t_get_attr('age',0) < self.get_action_param_value(state,'minimal_age',0):
             # not enough age
-            return 0, None
-        
+            return False
+
+        if state.t_get_attr('energy',0) < self.get_action_param_value(state,'minimal_energy',0):
+            # not enough energy
+            return False
+
+        return True
+
+
+    def calculate_utility(self, state):
+        """calculate the utility of the action
+        return utility_value, run_action_params
+        """
+        if self.mate_available(state) is False:
+            return -1, None
+
         # Get the surrounding species
-        uvalue = self.utility_base_value
+        uvalue = self.get_action_param_value(state,'utility_base_value')
         run_params = None
         saw = state.saw()
 
         if saw is None:
-            # no surrounding
-            return 0, None
+            # no surrounding -> no utility
+            return -1, None
         
         # find same species
         same_species = saw.get_objects_plus_meta(only_class=self.get_action_param_value(state,'mate_species'))
-        if ( len(same_species) == 0
-                or state.t_get_attr('energy',0) < self.get_action_param_value(state,'minimal_energy') ):
-            # No species found in the surrounding
-            return 0, None
-        
         mate_meta_nearby = None
-        for mate_meta_nearby in same_species:
-            if mate_meta_nearby[0].t_get_attr('age',0) < self.get_action_param_value(state,'minimal_age',0):
-                # not enough age
-                continue
+        for mmn in same_species:
+            if( mmn[0].mate_available() ):
+                mate_meta_nearby = mmn
+                break
 
         if mate_meta_nearby is None:
             # No mate found in the surrounding
-            return 0, None
-
+            return -1, None
+        # one target found
         state.t_set_attr('mate_meta_nearby', mate_meta_nearby)
 
+        request_move = False
         if(mate_meta_nearby[1] > self.get_action_param_value(state,'nearby_distance') ):
-            # too far away
-            return 0, None
+            # too far away, request move
+            request_move = True
 
         # Penalty for the species in 'penalty'
         penalty_meta_agents = saw.get_objects_plus_meta(only_class=self.get_action_param_value(state,'penalty_species'))
@@ -340,14 +368,18 @@ class mate(action):
                         + ( self.get_action_param_value(state,'penalty_distance_factor') * o[1] )
                         for o in penalty_meta_agents)
 
-        uvalue += self.get_action_param_value(state,'utility_value') - penalty
+        uvalue -= penalty
         run_params = {
             'utility_value': uvalue,
             'mate_meta_nearby': mate_meta_nearby,
         }
-                  
-        state.t_set_attr('run_params', run_params)
-        return uvalue, run_params
+
+        if request_move:
+            move.request_move(state, mate_meta_nearby[2], uvalue)
+            return -1, None
+        else:
+            # state.t_set_attr('run_params', run_params)
+            return uvalue, run_params
 
 
     def action_self_effect(self,agent,state,params):
@@ -377,6 +409,13 @@ class mate(action):
         if result is None:
             return
         
+        # get the partner
+        partner = result.get('partner', None)
+        if partner is not None:
+            # mate done, mark both as mated
+            partner.mate_marker(True)
+            agent.mate_marker(True)
+
         if 'new_agent' in result and len(result['new_agent']) > 0:
             # get the new agent
             saw = state.saw()
@@ -396,7 +435,25 @@ class simple_move(action):
     __init__( params = { 'distance': 1, 'energy_penalty': 2, 'change_direction_prob': 0.1}
     """
     def __init__(self, params=None, **kwargs):
-        super().__init__('move', params, **kwargs)
+        # the order value is used to sort the actions, and for the move the be after action that need to request a move
+        super().__init__('move', params, order_value=75, **kwargs)
+
+    @classmethod
+    def get_request_move(cls, state):
+        """return the request move parameters"""
+        return state.t_get_attr('request_move', (None,-1,None))
+
+    @classmethod
+    def request_move(cls, state, direction, utility, distance=None):
+        if cls.get_request_move(state)[2] > utility:
+            # not enough utility
+            return
+        
+        if distance is None:
+            distance = cls.get_action_param_value(state, 'distance')
+        
+        state.t_set_attr('request_move', (direction, utility, distance))
+        return
 
     @classmethod
     def get_action_params(cls):
@@ -405,13 +462,22 @@ class simple_move(action):
                  'change_direction_prob': (0.1,'Probability of changing direction during movement') }
 
     def calculate_utility(self, state):
-        return self.utility_base_value, None
+        dr, ut, ds = self.get_request_move(state)
+        if ut > self.utility_base_value(state):
+            # request move is better than the base utility
+            return ut, { 'dir': dr, 'dist': ds }
+        else:
+            return self.utility_base_value(state), None
 
 
     def action_self_effect(self,agent,state,params):
         current_energy = self.get_current_state_value_for(state, 'energy')
         new_energy = current_energy - self.get_action_param_value(state,'energy_penalty')
         self.set_current_state_value_for(state, 'energy', new_energy)
+
+        if params is not None:
+            # already defined move
+            return params
 
         if random() < self.get_action_param_value(state,'change_direction_prob'):
             # change direction
@@ -461,7 +527,7 @@ class eat(move):
 
     def calculate_utility(self, state):
         # Get the surrounding species
-        uvalue = self.utility_base_value
+        uvalue = self.utility_base_value(state)
         saw = state.saw()
         if saw is not None:
             targets = saw.get_objects_plus_meta(only_class=self.get_action_param_value(state,'target_classes'))
@@ -490,7 +556,7 @@ class eat(move):
                     'target_meta': target,
                 }
             
-        state.t_set_attr('run_params', run_params)
+        # state.t_set_attr('run_params', run_params)
         return uvalue, run_params
 
 

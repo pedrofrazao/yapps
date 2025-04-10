@@ -186,7 +186,6 @@ class TestChromosomeBig(unittest.TestCase):
         chromosome2 = Chromosome( self.alleles )
         new_chromosome = chromosome1.sexual_reproduction(chromosome2)
         debug( f"\n>> chromosome1:       {str(chromosome1)}" )
-        debug( f"chromosome2:       {str(chromosome2)}" )
         debug( f"new_chromosome:    {str(new_chromosome)}" )
 
         cross_counter,_ = Chromosome._approx_crossover_count(chromosome1,chromosome2,new_chromosome)

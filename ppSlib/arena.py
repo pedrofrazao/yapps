@@ -127,7 +127,7 @@ class Arena:
         self.rows = rows
         self.cols = cols
         if arena_type is None:
-            arena_type = 'torus' if kwargs.get('torus', False) is True else 'nontorus'
+            arena_type = 'torus' if kwargs.get('torus', True) is True else 'nontorus'
         
         self.type = arena_type
         

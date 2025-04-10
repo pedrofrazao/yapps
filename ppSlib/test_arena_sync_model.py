@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../'
 from pprint import pprint
 import unittest
 from ppSlib.arena_sync_model import ArenaSyncModel, asmObject, asmState
-from ppSlib.agent import Agent, Carnivore, Prey, Block, Trap, LivingAgent
+from ppSlib.agent import Agent, Block, LivingAgent
 
 
 class TestArenaSyncModel(unittest.TestCase):
