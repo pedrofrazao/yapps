@@ -9,7 +9,7 @@ dirname = os.path.dirname(__file__)
 sys.path.append(dirname)
 
 from ppSlib.arena_sync_model import ArenaSyncModel
-from ppSlib.agent import Agent, Carnivore, Prey, Block, Trap, LivingAgent, Grass
+from ppSlib.agent import Agent, Block, LivingAgent, Grass
 import ppSlib.agent as agent
 import datetime
 import argparse
@@ -165,6 +165,10 @@ def loop(stdscr, arena, steps=5, args=None):
             to_cont = stdscr_step(arena, stdscr, lwin, num_rows, num_cols, msg, args)
             if to_cont is False:
                 break
+        else:
+            if( i % (steps / 5) == 0 ):
+                # Print the arena and messages
+                print(arena)
 
 
 def stdscr_step(arena, stdscr, lwin, num_rows, num_cols, msg, args):

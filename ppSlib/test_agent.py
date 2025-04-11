@@ -8,7 +8,7 @@ from ppSlib.agent import Agent as Agent, Block, Glide, LivingGAAgent, GlideGA
 from ppSlib.action import move, action, mate
 import ppSlib.action as action
 from ppSlib.arena_sync_model import ArenaSyncModel
-
+import ppSlib.agent as agentcls
 
 debug = lambda x: print(f">> {str(x)}") if( os.environ.get('DEBUG', False) ) else None
 
@@ -336,6 +336,39 @@ class TestAgent4(unittest.TestCase):
                                     f"allele {allele} not correct in state" )
 
 
+class TestAgentEscape(unittest.TestCase):
+    def setUp(self):
+        self.arena = ArenaSyncModel(8, 8, sync_model='OASCycl')
+
+        agent_attr = {'energy': 10, 'epoch_penalty':0, 'see_length':0}
+        agent_mainclass = getattr(agentcls, 'LivingAgent')
+        Fox = type('Fox', (agent_mainclass,), {})
+        f = Fox(arena=self.arena, state_args=agent_attr, priority=50, actions = [] )
+        self.arena.add_to_position(0, 0, f)
+
+        Prey = type('Prey', (agent_mainclass,), {})
+        agent_attr = {'energy': 10, 'epoch_penalty':0, 'see_length':2}
+        a = [action.move({ 'utility_base_value':0, 'distance': 1, 'energy_penalty': 0, 'change_direction_prob': 0 }),
+             action.escape({ 'utility_base_value':0,
+                             'from_species': ['Fox'],
+                             'from_count_factor': 2,
+                             'from_distance_factor': 1,
+                             }),
+        ]
+        p = Prey(arena=self.arena, state_args=agent_attr, priority=5, actions = a )
+        self.arena.add_to_position(0, 2, p)
+        self.p = p
+
+    def test_escape(self):
+        self.assertIn(self.p, self.arena.get_position(0, 2))
+        debug(self.arena)
+        self.arena.run_step()
+        debug(self.p.msg)
+        debug(self.arena)
+        self.assertIn(self.p, self.arena.get_position(0, 3))
+        
+        self.arena.run_step()
+        debug(self.arena)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

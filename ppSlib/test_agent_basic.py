@@ -262,7 +262,7 @@ class TestGAGrass(unittest.TestCase):
 
         for k,_,_ in self.chromosome_init:
             self.assertIn(new_agent.chromosome.gene_value(k), ( g1.chromosome.gene_value(k), g2.chromosome.gene_value(k) ) )
-           
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

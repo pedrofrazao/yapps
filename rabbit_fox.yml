@@ -1,0 +1,103 @@
+arena:
+  rows: 16
+  cols: 16
+  agents:
+    - type: Rabbit
+      class: LivingGAAgent
+      count: 5
+      attributes:
+        energy: 10
+        epoch_penalty: 1
+        see_length: 2
+        volume: 33
+      actions:
+        - name: move
+          params:
+            utility_base_value: 1
+            distance: 1
+            energy_penalty: 0
+            change_direction_prob: 0
+        - name: rest
+          params:
+            utility_base_value: 0
+            energy_recover: 0
+            max_recoverable_energy: 10
+        - name: eat
+          params:
+            max_distance: 1
+            target_classes: [Carrot]
+            energy_gain: 6
+        - name: mate
+          params:
+            mate_species: [Rabbit]
+            energy_penalty: 5
+            utility_base_value: 10
+            minimal_energy: 10
+            nearby_distance: 0
+            minimal_age: 5
+        - name: escape
+          params:
+            utility_base_value: 0
+            from_species: [Fox]
+            from_count_factor: 5
+            from_distance_factor: 2
+            to_species: [Rabbit]
+      alleles:
+        - name: move|change_direction_prob
+          values: [0.1, 1, 1, 3, 4, 7, 11]
+          description: prob in % to change direction
+        - name: mate|minimal_age
+          values: [ 2, 3, 4]
+          description: minimal age to mate
+        - name: escape|from_distance_factor
+          values: [1, 2, 4, 6]
+          description: distance factor to escape from fox
+        - name: escape|from_count_factor
+          values: [0.1, 0.5, 1, 2, 3]
+          description: count factor to escape from fox
+
+    - type: Fox
+      class: LivingAgent
+      count: 1
+      attributes:
+        energy: 10
+        epoch_penalty: 0
+        see_length: 2
+        volume: 55
+      actions:
+        - name: move
+          params:
+            utility_base_value: 1
+            distance: 1
+            energy_penalty: 1
+            change_direction_prob: 0.1
+        - name: eat
+          params:
+            max_distance: 1
+            target_classes: [Rabbit]
+            energy_gain: 10
+
+    - type: Carrot
+      class: LivingAgent
+      count: 25
+      attributes:
+        energy: 25
+        epoch_penalty: 1
+        see_length: 1
+        volume: 1
+      actions:
+        - name: rest
+          params:
+            utility_base_value: 0
+            energy_recover: 0
+        - name: mate
+          params:
+            utility_base_value: 2
+            mate_species: [Carrot]
+            energy_penalty: 5
+            utility_base_value: 10
+            minimal_energy: 6
+            nearby_distance: 2
+            penalty_species: [Carrot]
+            penalty_distance_factor: 2
+            penalty_count_factor: 2

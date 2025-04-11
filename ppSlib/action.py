@@ -1,5 +1,7 @@
 from random import choice, random
 from ppSlib.arena_sync_model import asmState
+from ppSlib.agent_direction_selector import random_direction_selector
+
 
 class action_selection():
     """class to manage action logic: utility calculation; action selection; action parameters
@@ -256,11 +258,17 @@ class action:
 
 
     def request_move(self, state, meta, utility):
+        """request a move to the given object"""
+        return self.request_move_dir(state, meta[2], utility)
+
+
+    def request_move_dir(self, state, direction, utility):
+        """request a move in a direction"""
         if self.get_request_move(state)['utility'] > utility:
             # not enough utility
             return
         
-        state.t_set_attr('request_move', { 'meta': meta, 'utility': utility} )
+        state.t_set_attr('request_move', { 'meta': (None, None, direction), 'utility': utility} )
         return
 
 
@@ -317,7 +325,7 @@ class mate(action):
         return {'mate_species': ([], 'List of species eligible for mating'),
                 'penalty_species': ([], 'List of species that impose penalties'),
                 'penalty_count_factor': (1, 'Penalty multiplier for the count of penalty species'),
-                'penalty_distance_factor': (0.5, 'Penalty multiplier for the distance of penalty species'),
+                'penalty_distance_factor': (1, 'Penalty multiplier for the distance of penalty species'),
                 'energy_penalty': (0, 'Energy cost of mating'),
                 'utility_base_value': (10, 'Base utility value for mating'),
                 'minimal_energy': (0, 'Minimum energy required to mate'),
@@ -379,8 +387,8 @@ class mate(action):
 
         # Penalty for the species in 'penalty'
         penalty_meta_agents = saw.get_objects_plus_meta(only_class=self.get_action_param_value(state,'penalty_species'))
-        penalty = sum( self.get_action_param_value(state,'penalty_count_factor')
-                        + ( self.get_action_param_value(state,'penalty_distance_factor') * o[1] )
+        penalty = sum( calc_utility_inv_square_law( o[1], self.get_action_param_value(state,'penalty_count_factor'),
+                        self.get_action_param_value(state,'penalty_distance_factor') )
                         for o in penalty_meta_agents)
 
         uvalue -= penalty
@@ -393,7 +401,6 @@ class mate(action):
             self.request_move(state, mate_meta_nearby, uvalue)
             return -1, None
         else:
-            # state.t_set_attr('run_params', run_params)
             return uvalue, run_params
 
 
@@ -464,11 +471,12 @@ class simple_move(action):
         req = self.get_request_move(state)
         (_,ds,dr) = req['meta']
         utility = req['utility']
-        if ds is None:
-            ds = self.get_action_param_value(state,'distance',0)
+        # force the distance that is used for the move
+        ds = self.get_action_param_value(state,'distance',0)
+        
         if utility > self.utility_base_value(state):
             # request move is better than the base utility
-            return utility, { 'dir': dr, 'dist': ds }
+            return utility, { 'direction': dr, 'move_distance': ds }
         else:
             return self.utility_base_value(state), None
 
@@ -506,7 +514,74 @@ class move(simple_move):
     pass
 
 
-class eat(move):
+class escape(action):
+    """
+    needed parameters:
+    - from_species: []
+    - from_count_factor: 1
+    - from_distance_factor: 1
+    - to_species: []
+    - to_count_factor: 1
+    - to_distance_factor: 1
+    """
+    def __init__(self, params=None, **kwargs):
+        super().__init__('escape', params, **kwargs)
+    
+    @classmethod
+    def get_action_params(cls):
+        return {'from_species': ([], 'List of species'),
+                'from_count_factor': (1, 'Penalty multiplier for the count of from species'),
+                'from_distance_factor': (1, 'Penalty multiplier for the distance of from species'),
+                'to_species': ([], 'List of species'),
+                'to_count_factor': (1, 'Penalty multiplier for the count of to species'),
+                'to_distance_factor': (1, 'Penalty multiplier for the distance of to species'),
+                'utility_base_value': (0, 'Base utility value for escape'),
+        }
+
+    def calculate_utility(self, state):
+        # Get the surrounding species
+        uvalue = self.utility_base_value(state)
+        run_params = None
+        saw = state.saw()
+
+        if saw is None:
+            # no surrounding -> no utility
+            return -1, None
+        
+        # find same species
+        from_species = saw.get_objects_plus_meta(only_class=self.get_action_param_value(state,'from_species'))
+        to_species = saw.get_objects_plus_meta(only_class=self.get_action_param_value(state,'to_species'))
+        if len(from_species) == 0 and len(to_species) == 0:
+            return -1, None
+
+        # one target found
+        from_target = from_species[0] if len(from_species) > 0 else None
+        to_target = to_species[0] if len(to_species) > 0 else None
+
+        # Penalty for the species in 'from'
+        utility_from = sum( calc_utility_inv_square_law( o[1],
+                                                        self.get_action_param_value(state,'from_count_factor'),
+                                                        self.get_action_param_value(state,'from_distance_factor') )
+                        for o in from_species)
+
+        # Penalty for the species in 'to'
+        utility_to = sum( calc_utility_inv_square_law( o[1],
+                                                      self.get_action_param_value(state,'to_count_factor'),
+                                                      self.get_action_param_value(state,'to_distance_factor') )
+                        for o in to_species)
+        
+        if( utility_from >= utility_to ):
+            uvalue += utility_from
+            direction = opposite_direction_to(from_target[2])
+        else:
+            uvalue += utility_to
+            direction = to_target[2] if len(to_species)>0 else random_direction_selector(prob_change=1)
+
+        self.request_move_dir(state, direction, uvalue)
+        return -1, None
+
+
+class eat(action):
     """
     needed parameters:
     - 'max_distance': 1
@@ -520,56 +595,67 @@ class eat(move):
     - target: (agent, distance, direction)
     """
     def __init__(self, params=None, **kwargs):
-        super().__init__('mate', params, **kwargs)
+        super().__init__('eat', params, **kwargs)
 
     @classmethod
     def get_action_params(cls):
         return { 'max_distance': (0,'Maximum distance to target for eating'),
                  'target_classes': ([],'List of target classes eligible for eating'),
-                 'energy_gain': (10,'Energy gained from eating a target'),
+                 'energy_gain': (5,'Energy gained from eating a target'),
                  'penalty_species': ([],'List of species that impose penalties'),
-                 'penalty_distance_factor': (0.5,'Penalty multiplier for the distance of penalty species'),
+                 'penalty_distance_factor': (1,'Penalty multiplier for the distance of penalty species'),
                  'penalty_count_factor': (1,'Penalty multiplier for the count of penalty species') }
 
     def calculate_utility(self, state):
         # Get the surrounding species
         uvalue = self.utility_base_value(state)
+        run_params = None
         saw = state.saw()
-        if saw is not None:
-            targets = saw.get_objects_plus_meta(only_class=self.get_action_param_value(state,'target_classes'))
-            if len(targets) == 0:
-                return -1
-            target = targets[0]
 
-            if(target[1] > self.get_action_param_value(state,'max_distance')):
-                # too far away
-                return -1
-            
-            if(target[1] <= self.get_action_param_value(state,'max_distance')):
-                # expect energy gain
-                gain += self.get_action_param_value(state,'energy_gain', 0)
+        if saw is None:
+            # no surrounding -> no utility
+            return -1, None
+        
+        # find same species
+        targets = saw.get_objects_plus_meta(only_class=self.get_action_param_value(state,'target_classes'))
+        if len(targets) == 0:
+            return -1, None
+        target = targets[0]
 
-                penalty_meta_agents = saw.get_objects_plus_meta(only_class=self.get_action_param_value(state,'penalty_species'))
-                penalty = sum( self.get_action_param_value(state,'penalty_count_factor')
-                                + ( self.get_action_param_value(state,'penalty_distance_factor') * o[1] )
-                                for o in penalty_meta_agents)
-                
-                uvalue += gain - penalty
+        request_move = False
+        if(target[1] > self.get_action_param_value(state,'max_distance')):
+            # too far away, request move
+            request_move = True
+        
+        # expect energy gain
+        gain = self.get_action_param_value(state,'energy_gain', 0)
 
-                run_params = {
-                    'utility_value': uvalue,
-                    'energy_gain': gain,
-                    'target_meta': target,
-                }
-            
-        # state.t_set_attr('run_params', run_params)
-        return uvalue, run_params
+        # Penalty for the species in 'penalty'
+        penalty_meta_agents = saw.get_objects_plus_meta(only_class=self.get_action_param_value(state,'penalty_species'))
+        penalty = sum( calc_utility_inv_square_law( o[1],
+                                                   self.get_action_param_value(state,'penalty_count_factor'),
+                                                   self.get_action_param_value(state,'penalty_distance_factor') )
+                        for o in penalty_meta_agents)
+        
+        uvalue += gain - penalty
+
+        run_params = {
+            'utility_value': uvalue,
+            'energy_gain': gain,
+            'target_meta': target,
+        }
+
+        if request_move:
+            self.request_move(state, target, uvalue)
+            return -1, None
+        else:
+            return uvalue, run_params
 
 
     def action_self_effect(self,agent,state,params):
 
         current_energy = self.get_current_state_value_for(state, 'energy')
-        new_energy = current_energy - params['energy_gain']
+        new_energy = current_energy + params['energy_gain']
         self.set_current_state_value_for(state, 'energy', new_energy)
 
         return { 'target': params['target_meta'][0] }
@@ -587,3 +673,20 @@ class eat(move):
             target.eaten()
 
         return
+
+
+def opposite_direction_to(direction):
+    """return the oposite direction to the given direction
+    """
+    if direction == None:
+        return None
+
+    d = {1:9, 2:8, 3:7, 4:6, 5:None, 6:4, 7:3,8:2,9:1}[direction]
+    if d is None:
+        d = choice([1,2,3,4,6,7,8,9])
+
+    return d
+
+
+def calc_utility_inv_square_law(distance, base_utility, scaling_factor=1):
+    return base_utility / (1 + scaling_factor * distance**2)
