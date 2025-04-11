@@ -19,7 +19,7 @@ arena:
             change_direction_prob: 0
         - name: rest
           params:
-            utility_base_value: 0
+            utility_base_value: 0.1
             energy_recover: 0
             max_recoverable_energy: 10
         - name: eat
@@ -27,6 +27,7 @@ arena:
             max_distance: 1
             target_classes: [Carrot]
             energy_gain: 6
+            max_energy: 75
         - name: mate
           params:
             mate_species: [Rabbit]
@@ -76,6 +77,7 @@ arena:
             max_distance: 1
             target_classes: [Rabbit]
             energy_gain: 10
+            max_energy: 75
 
     - type: Carrot
       class: LivingAgent
@@ -85,10 +87,11 @@ arena:
         epoch_penalty: 1
         see_length: 1
         volume: 1
+        direction: 5
       actions:
         - name: rest
           params:
-            utility_base_value: 0
+            utility_base_value: 0.1
             energy_recover: 0
         - name: mate
           params:

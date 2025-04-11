@@ -590,6 +590,7 @@ class eat(action):
     - 'penalty_species': [],
     - 'penalty_distance_factor': 0,
     - 'penalty_count_factor': 0,
+    - 'max_energy': 100
 
     t_attrs (via calculate_utility):
     - target: (agent, distance, direction)
@@ -604,9 +605,17 @@ class eat(action):
                  'energy_gain': (5,'Energy gained from eating a target'),
                  'penalty_species': ([],'List of species that impose penalties'),
                  'penalty_distance_factor': (1,'Penalty multiplier for the distance of penalty species'),
-                 'penalty_count_factor': (1,'Penalty multiplier for the count of penalty species') }
+                 'penalty_count_factor': (1,'Penalty multiplier for the count of penalty species'),
+                  'max_energy': (100,'Agent maximum energy'),}
+
 
     def calculate_utility(self, state):
+        current_energy = self.get_current_state_value_for(state, 'energy')
+        max_energy = self.get_action_param_value(state,'max_energy')
+
+        if( current_energy >= max_energy ):
+            return -1, None
+        
         # Get the surrounding species
         uvalue = self.utility_base_value(state)
         run_params = None
@@ -629,7 +638,7 @@ class eat(action):
         
         # expect energy gain
         gain = self.get_action_param_value(state,'energy_gain', 0)
-
+        
         # Penalty for the species in 'penalty'
         penalty_meta_agents = saw.get_objects_plus_meta(only_class=self.get_action_param_value(state,'penalty_species'))
         penalty = sum( calc_utility_inv_square_law( o[1],
@@ -637,7 +646,14 @@ class eat(action):
                                                    self.get_action_param_value(state,'penalty_distance_factor') )
                         for o in penalty_meta_agents)
         
-        uvalue += gain - penalty
+        gain -= penalty
+        gain = gain if current_energy + gain <= max_energy else max_energy - current_energy
+
+        uvalue += gain
+
+        if( uvalue < 0 ):
+            # not enough utility
+            return -1, None
 
         run_params = {
             'utility_value': uvalue,
