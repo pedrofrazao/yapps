@@ -1,5 +1,5 @@
 from ppSlib.arena_sync_model import ArenaSyncModel
-from ppSlib.agent import Agent, Carnivore, Prey, Block, Trap, LivingAgent
+from ppSlib.agent import Agent, Block,  LivingAgent
 from random import randint
 
 def load_demo( case = 1, **kwargs ):

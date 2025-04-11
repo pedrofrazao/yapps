@@ -374,6 +374,15 @@ class Arena:
             object_types.add(type(o).__name__)
         return object_types
 
+    def get_count_by_object_type(self):
+        """Get the count of each object type in the arena."""
+        count = {}
+        for o in self.get_objects():
+            class_name = type(o).__name__
+            if class_name not in count:
+                count[class_name] = 0
+            count[class_name] += 1
+        return count
 
 def main():
     """Main function."""

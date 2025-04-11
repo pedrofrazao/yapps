@@ -276,8 +276,11 @@ class MatrixGUI:
 
     def _add_to_plot(self):
         # get the number of alive agents
-        num_alive = len([obj for obj in self.arena.get_objects() if isinstance(obj, LivingAgent)])
-        self.time_series_plot.add_value(num_alive)
+        # num_alive = len([obj for obj in self.arena.get_objects() if isinstance(obj, LivingAgent)])
+        c = self.arena.get_count_by_object_type()
+        for k,v in c.items():
+            self.time_series_plot.add_value(v, k)
+
 
     def _msg(self):
         self.log_message( f"## Epoch: {self.arena.epoch} ##" )
@@ -314,10 +317,46 @@ class MatrixGUI:
                 self.rows = self.arena.rows
                 self.cols = self.arena.cols
                 self.load_agent_images(agent_types=self.arena.get_object_types())
-                self.update_display()
             except Exception as e:
                 self.show_error_popup(f"Error loading YAML configuration: {e}")
 
+            # check object types
+            object_types = self.arena.get_object_types()
+            if not object_types:
+                self.show_error_popup("No object types found in the configuration.")
+                return
+
+            self.object_types = object_types
+            # create a new time series object
+            self.reset_plot(object_types)
+            for otype in object_types:
+                self.time_series_plot.add_series(otype)
+
+            self.update_display()
+
+    def reset_plot(self, object_types=None, start_time=0, end_time=100):
+        """Reset the plot frame and create a new TimeSeriesPlot with the specified object types"""
+        # Destroy the existing plot frame if it exists
+        if self.plot_frame:
+            self.plot_frame.destroy()
+        
+        # Create a new plot frame
+        self.plot_frame = tk.Frame(self.left_frame, height=int(self.root.winfo_screenheight() / 4))
+        self.plot_frame.pack(side=tk.TOP, fill=tk.X)
+        
+        # Create a new time series plot
+        self.time_series_plot = TimeSeriesPlot(self.plot_frame, start_time=start_time, end_time=end_time)
+        
+        # Add series for each object type
+        if object_types:
+            for otype in object_types:
+                self.time_series_plot.add_series(otype)
+                
+        # Remove the default series if it exists
+        try:
+            self.time_series_plot.remove_series("default")
+        except:
+            pass
 
     def save_configuration(self):
         file_path = filedialog.asksaveasfilename(filetypes=[("JSON files", "*.json")])
