@@ -164,7 +164,7 @@ class asmObject(ArenaObject,smRole):
     """
     def __init__(self, name, state, priority=0, log=None, **kwargs):
         super().__init__(name, **kwargs)
-        self.asmstate = asmState(state,asmobject=self)
+        self.asmstate = asmState(state)
         self.priority = priority
         self.log = log if log is not None else self.add_msg
 
@@ -220,6 +220,7 @@ class asmObject(ArenaObject,smRole):
 
     def move(self,direction, distance):
         """Move the object in the arena"""     
+        self.asmstate['direction'] = direction
         self.arena.move_object_position(self, direction, distance)
         return
 

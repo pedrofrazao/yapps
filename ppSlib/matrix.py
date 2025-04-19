@@ -283,7 +283,7 @@ class MatrixGUI:
 
 
     def _msg(self):
-        self.log_message( f"## Epoch: {self.arena.epoch} ##" )
+        self.log_message( f"##### Epoch: {self.arena.epoch} #####" )
         for obj in sorted(self.arena.get_objects(), key=lambda x: x.nickname):            
             if( isinstance(obj, LivingAgent) ):
                 str = obj.info( onlywithmessage=True )

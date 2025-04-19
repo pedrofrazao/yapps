@@ -109,7 +109,7 @@ class action_utility_list():
         return ",".join( [ str(value[0].name) +":"+ str(value[1]) for value in self._sorted_ulist] )
 
 
-class action:
+class action():
 
     def __init__(self, name, params=None, success_prob=1, order_value=25 ):
         self.params = self.get_dict_with_default_values_for_params()
@@ -329,7 +329,8 @@ class mate(action):
                 'energy_penalty': (0, 'Energy cost of mating'),
                 'utility_base_value': (10, 'Base utility value for mating'),
                 'minimal_energy': (0, 'Minimum energy required to mate'),
-                'nearby_distance': (0, 'Maximum distance to consider a mate nearby') }
+                'nearby_distance': (0, 'Maximum distance to consider a mate nearby'),
+                'minimal_age': (0, 'Minimum age required to mate'),  }
 
     def mate_available(self, state):
         """check if mating is available
@@ -504,6 +505,7 @@ class simple_move(action):
 
     def do_update(self, agent, state, result):
         if result is not None:
+            state.t_set_attr('direction', result['direction'])
             direction = result['direction']
             distance = result['move_distance']
             agent.move(direction=direction, distance=distance)
@@ -596,6 +598,11 @@ class eat(action):
     - target: (agent, distance, direction)
     """
     def __init__(self, params=None, **kwargs):
+
+        # values to init simples_move action
+        # kwargs['change_direction_prob'] = 0
+        # kwargs['distance'] = kwargs.get('max_distance')
+        # kwargs['energy_penalty'] = 0
         super().__init__('eat', params, **kwargs)
 
     @classmethod
@@ -674,7 +681,9 @@ class eat(action):
         new_energy = current_energy + params['energy_gain']
         self.set_current_state_value_for(state, 'energy', new_energy)
 
-        return { 'target': params['target_meta'][0] }
+        return { 'target': params['target_meta'][0],
+                 'direction': params['target_meta'][2],
+                 'move_distance': self.get_action_param_value(state,'distance') }
 
 
     def do_update(self,agent,state,result):
@@ -688,6 +697,7 @@ class eat(action):
         if target is not None:
             target.eaten()
 
+        # super().do_update(agent, state, result)
         return
 
 

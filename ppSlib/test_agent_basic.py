@@ -264,5 +264,38 @@ class TestGAGrass(unittest.TestCase):
             self.assertIn(new_agent.chromosome.gene_value(k), ( g1.chromosome.gene_value(k), g2.chromosome.gene_value(k) ) )
 
 
+class TestAgentGrassRB(unittest.TestCase):
+    def setUp(self):
+        self.arena = ArenaSyncModel(5, 5, sync_model='OASCycl')
+
+        # force some actions configuration
+        alist = [] 
+        alist.append( Grass(arena = self.arena, state_args={'rebirth':True, 'energy':2, 'epoch_penalty':1 }) )
+
+        self.arena.add_to_position(2, 0, alist[0])
+        self.alist = alist
+
+    def test_agent(self):
+        debug( self.arena )
+        g1 = self.alist[0]
+        self.assertEqual(g1.energy(), 2 )
+
+        # should select rest action
+        self.arena.run_step()
+        debug( self.arena )
+        self.assertEqual(g1.energy(), 1 )
+        c = self.arena.get_count_by_object_type()
+        self.assertEqual(c['Grass'],1)
+        self.assertIn(g1, self.arena.get_objects())
+
+        self.arena.run_step()
+        debug( self.arena )
+        self.assertNotIn(g1, self.arena.get_objects())
+        self.assertEqual(c['Grass'],1)
+        
+        return
+
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

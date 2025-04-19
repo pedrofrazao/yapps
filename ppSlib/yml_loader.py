@@ -39,13 +39,14 @@ class YMLArenaLoader:
 
             positions = agent_config.get('position', [])
             for i in range(count):
+                agentattr = attributes.copy()
                 kwargs = {}
                 kwargs['actions'] = actions
                 if alleles is not None:
                     kwargs['chromosome'] = alleles
 
                 # Create the agent instance
-                agent = agent_class(arena=arena, state_args=attributes, **kwargs)
+                agent = agent_class(arena=arena, state_args=agentattr, **kwargs)
 
                 # Add agent to a specific position if available, otherwise random
                 if i < len(positions):

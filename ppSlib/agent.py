@@ -8,55 +8,6 @@ from ppSlib.genetic import Chromosome
 from abc import abstractmethod, ABC
 from random import randint, choice
 
-# ##
-# ## Agent State
-# ##
-# class AgentState(asmState):
-#     def __init__(self, energy=100, direction=5, epoch_penalty=1, **kwargs ):
-#         # self.owner = owner
-#         _state = kwargs
-#         if _state.get('energy', None) is None:
-#            _state['energy'] = 100
-#         if _state.get('epoch_penalty', None) is None:
-#             _state['epoch_penalty'] = 1
-#         if _state.get('direction',None) is None:
-#             _state['direction'] = 5
-#         super().__init__( _state )
-
-#     def epoch_tic(self):
-#         self.add2sattr('energy', self.getsattr('epoch_penalty') )
-
-#     # def change_energy_by(self, delta):
-#     #     self.energy += delta
-
-#     # def copy(self):
-#     #     return self.clone()
-
-#     def __str__(self):
-#         return f"{self.energy}"
-    
-#     def getsattr(self, attr):
-#         s = self.get_curr_state()
-#         return s.get(attr, None)
-    
-#     def setsattr(self, attr, value):
-#         ns = self.get_next_state()
-#         ns[attr] = value
-
-#     def add2sattr(self, attr, value):
-#         ns = self.get_next_state()
-#         ns[attr] = ns[attr] + value
-    
-#     @staticmethod
-#     def Agent.add_to_state_args( s_args, **kwargs ):
-#         ## add s_args dict values to a state_args present on kwargs
-#         state = kwargs.get('state_args', {})
-#         for k,v in s_args.items():
-#             state[k] = v if k not in state else state[k]
-#         return state
-
-#     def __str__(self):
-#         return f"Energy: {self.energy}, Direction: {self.direction}, Epoch Penalty: {self.epoch_penalty}, State: {str(self._state)}"
     
 ##
 ## Agent
@@ -126,7 +77,7 @@ class Agent(asmObject):
         # select action
         oaction,args_action = self.select_action(self.asmstate)
 
-        if oaction is not None:
+        if oaction is not None and args_action is not None:
             self.add_msg( f"{oaction.name} - {args_action}" )
             self.asmstate.t_set_attr('ran action', oaction)
             oaction.run_action(self,self.get_state(),args_action)
@@ -166,6 +117,10 @@ class Agent(asmObject):
         if(self.log):
             self.log( "died" )
         self.arena.remove_from_position(self.x, self.y, self)
+        if self.getsattr("rebirth") is True:
+            rb = self.mate(self, {} )
+            for o in rb:
+                self.arena.add_to_random_position(o)
 
 
     def select_action(self,state):
@@ -296,12 +251,15 @@ class LivingAgent(Agent,asmObjectStat):
 
     def _mate_init_args(self, partner, mate_params):
         new_state_args = self._init_state_args.copy()
+        new_state_args['priority'] = self.priority
+        new_state_args['volume'] = self.volume
         actions = self._action_selector.actions_list
         return {'state_args': new_state_args, 'actions': actions, 'arena': self.arena,}
 
     def mate(self, partner, mate_params, **kwargs):
         partner.mated()
         init_args = self._mate_init_args(partner, mate_params)
+
         return [ self.__class__( **init_args, **kwargs ) ] 
 
     def stats(self):
