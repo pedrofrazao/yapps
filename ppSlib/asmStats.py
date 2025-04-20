@@ -1,8 +1,9 @@
 import os
 
 class asmObjectStat():
-    def __init__(self, ignore=True, **kwargs):
-        self.ignore = ignore
+    """Base class for objects that can be monitored for statistics."""
+    def __init__(self, nostats=True, **kwargs):
+        self.nostats = nostats
         pass
 
     def stats(self):
@@ -27,7 +28,7 @@ class asmStats():
         self._stats_data[self.step] = {}
         for obj in self.get_objects():
             if isinstance(obj, asmObjectStat):
-                if obj.ignore and self.debug is False:
+                if obj.nostats and self.debug is False:
                     continue
                 v = obj.stats()
                 if v is None:
@@ -40,10 +41,11 @@ class asmStats():
                     print( f"|| stats: {obj} {v}")
                     continue
             else:
-                # basic stats with count by class
-                ocls = obj.__class__.__name__
-                v = self._stats_data[self.step].get(ocls, 0)
-                self._stats_data[self.step][ocls] = v + 1
+                if self.debug:
+                    # basic stats with count by class
+                    ocls = obj.__class__.__name__
+                    v = self._stats_data[self.step].get(ocls, 0)
+                    self._stats_data[self.step][ocls] = v + 1
 
     def get_stats(self):
         s = []

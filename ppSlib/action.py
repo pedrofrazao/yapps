@@ -330,7 +330,10 @@ class mate(action):
                 'utility_base_value': (10, 'Base utility value for mating'),
                 'minimal_energy': (0, 'Minimum energy required to mate'),
                 'nearby_distance': (0, 'Maximum distance to consider a mate nearby'),
-                'minimal_age': (0, 'Minimum age required to mate'),  }
+                'minimal_age': (0, 'Minimum age required to mate'),
+                'crossing_count': (1, 'Number of crossing points for mating'),
+                'mutation_rate': (0, 'Mutation rate for mating'),
+                }
 
     def mate_available(self, state):
         """check if mating is available
@@ -396,6 +399,8 @@ class mate(action):
         run_params = {
             'utility_value': uvalue,
             'mate_meta_nearby': mate_meta_nearby,
+            'mutation_rate': self.get_action_param_value(state,'mutation_rate'),
+            'crossing_count': self.get_action_param_value(state,'crossing_count'),
         }
 
         if request_move:

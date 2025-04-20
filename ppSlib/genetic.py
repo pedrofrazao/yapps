@@ -142,8 +142,7 @@ class Chromosome:
         sexual reproduction with another chromosome
         """
         new_chromosome = self.crossover(other, kwargs.get('num_cross_points', 1))
-
-        new_chromosome.mutation(kwargs.get('mutation_rate',0))
+        new_chromosome.mutation(rate=kwargs.get('mutation_rate',0))
         
         return new_chromosome
 

@@ -270,7 +270,7 @@ class TestAgentGrassRB(unittest.TestCase):
 
         # force some actions configuration
         alist = [] 
-        alist.append( Grass(arena = self.arena, state_args={'rebirth':True, 'energy':2, 'epoch_penalty':1 }) )
+        alist.append( Grass(arena = self.arena, state_args={'rebirth':True, 'energy':2, 'nostats': False, 'epoch_penalty':3 }) )
 
         self.arena.add_to_position(2, 0, alist[0])
         self.alist = alist
@@ -284,15 +284,18 @@ class TestAgentGrassRB(unittest.TestCase):
         self.arena.run_step()
         debug( self.arena )
         self.assertEqual(g1.energy(), 1 )
+        self.assertEqual(g1.nostats, False )
         c = self.arena.get_count_by_object_type()
         self.assertEqual(c['Grass'],1)
         self.assertIn(g1, self.arena.get_objects())
 
         self.arena.run_step()
         debug( self.arena )
-        self.assertNotIn(g1, self.arena.get_objects())
+        l = self.arena.get_objects()
+        self.assertNotIn(g1, l)
         self.assertEqual(c['Grass'],1)
-        
+        self.assertEqual(l[0].nostats, False )
+
         return
 
 

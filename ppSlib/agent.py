@@ -7,6 +7,7 @@ from ppSlib.action import action, move, action_selection, mate, rest
 from ppSlib.genetic import Chromosome
 from abc import abstractmethod, ABC
 from random import randint, choice
+import copy
 
     
 ##
@@ -77,7 +78,9 @@ class Agent(asmObject):
         # select action
         oaction,args_action = self.select_action(self.asmstate)
 
-        if oaction is not None and args_action is not None:
+        # simples move do not have args_action
+        # if oaction is not None and args_action is not None:
+        if oaction is not None:
             self.add_msg( f"{oaction.name} - {args_action}" )
             self.asmstate.t_set_attr('ran action', oaction)
             oaction.run_action(self,self.get_state(),args_action)
@@ -232,7 +235,9 @@ class LivingAgent(Agent,asmObjectStat):
     ## - LivingAgent( select_direction=lambda surrounding: randint(1,9) if randint(1,10) > 7 else self.direction() )
     def __init__(self, dir=5, **kwargs):
         # store the initial state args for the mate function
-        self._init_state_args = kwargs['state_args'].copy()
+        self._init_args = kwargs.copy()
+        self._init_args['state_args'] = copy.deepcopy(kwargs['state_args'])
+        self._init_args['dir'] = dir
 
         kwargs['state_args'] = Agent.add_to_state_args( { 'see_length': 0 }, **kwargs )
         kwargs['state_args'] = Agent.add_to_state_args( { 'epoch_penalty': 1 }, **kwargs )
@@ -243,18 +248,21 @@ class LivingAgent(Agent,asmObjectStat):
 
         kwargs['state_args'] = Agent.add_to_state_args( { 'direction': dir, 'epoch_penalty': 0 }, **kwargs )
 
+        nostats = True
+        if 'nostats' in kwargs['state_args']:
+            nostats = kwargs['state_args']['nostats']
+            del kwargs['state_args']['nostats']
+
         super().__init__( **kwargs )
-        asmObjectStat.__init__(self, **kwargs)
+        asmObjectStat.__init__(self, nostats=nostats, **kwargs)
         
     def mated(self):
         self.asmstate.t_set_attr('mated', True)
 
     def _mate_init_args(self, partner, mate_params):
-        new_state_args = self._init_state_args.copy()
-        new_state_args['priority'] = self.priority
-        new_state_args['volume'] = self.volume
-        actions = self._action_selector.actions_list
-        return {'state_args': new_state_args, 'actions': actions, 'arena': self.arena,}
+        new_state_args = self._init_args.copy()
+        new_state_args['state_args'] = copy.deepcopy(self._init_args['state_args'])
+        return new_state_args
 
     def mate(self, partner, mate_params, **kwargs):
         partner.mated()
@@ -291,7 +299,12 @@ class LivingGAAgent(LivingAgent):
         
     def _more_internal_state_info(self):
         return f"c:{self.chromosome}"
-
+    
+    def stats(self):
+        s = super().stats()
+        s.insert(-1,str(self.chromosome))
+        return s
+    
 
 class Block(NonlivingAgent):
     """
@@ -439,8 +452,8 @@ class Grass(LivingAgent):
                                                          },
                                                          **kwargs )
         kwargs['priority'] = kwargs.get('priority', 5)
-
-        super().__init__( can_move=False, **kwargs )
+        kwargs['can_move'] = False
+        super().__init__( **kwargs )
 
 
     def _default_actions(self):
