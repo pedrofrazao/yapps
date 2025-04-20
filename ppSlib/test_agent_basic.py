@@ -299,6 +299,124 @@ class TestAgentGrassRB(unittest.TestCase):
         return
 
 
+class TestMoving1(unittest.TestCase):
+    def setUp(self):
+
+        self.arena = ArenaSyncModel(5, 5, sync_model='OASCycl')
+        #  __ __ __ __ __
+        #  __ __ Gx __ __
+        #  __ __ __ __ __
+        #  B4 Ba Ba B0 Bb
+        #  __ __ __ __ __
+        self.b1 = Block( arena = self.arena )
+        self.b2 = Block( arena = self.arena )
+        self.b3 = Block( arena = self.arena )
+        self.b4 = Block( arena = self.arena )
+        self.b5 = Block( arena = self.arena )
+        self.arena.add_to_position(3, 0, self.b1)
+        self.arena.add_to_position(3, 1, self.b2)
+        self.arena.add_to_position(3, 2, self.b3)
+        self.arena.add_to_position(3, 3, self.b4)
+        self.arena.add_to_position(3, 4, self.b5)
+
+
+        agent_attr = {'energy': 10, 'epoch_penalty':0, 'see_length':0}
+        a = [move({ 'distance': 1, 'energy_penalty': 0, 'change_direction_prob': 0 })]
+        g1 = Glide( arena = self.arena, dir=8, state_args=agent_attr, actions = a )
+                
+        self.arena.add_to_position(1, 2, g1)
+        self.g1 = g1
+
+
+    def test_glide_move_fail(self):
+        g1 = self.g1
+        debug( self.arena )
+        self.assertEqual(g1.getposition(), (1, 2) )
+        self.assertEqual(g1.direction(), 8 )
+
+        self.arena.run_step()
+
+        debug( self.arena )
+        self.assertEqual(g1.getposition(), (2, 2) )
+        self.assertEqual(g1.direction(), 8 )
+        self.assertIsNone(g1.asmstate.t_get_attr('fail_move_dir',None))
+
+        self.arena.run_step()
+
+        debug( self.arena )
+        self.assertEqual(g1.getposition(), (2, 2) )
+        self.assertEqual(g1.direction(), 8 )
+        self.assertEqual(g1.asmstate.t_get_attr('fail_move_dir',None),8)
+
+        self.arena.run_step()
+        self.assertNotEqual(g1.direction(), 8 )
+        debug( self.arena )
+
+
+class TestMoving2(unittest.TestCase):
+    def setUp(self):
+
+        self.arena = ArenaSyncModel(5, 5, sync_model='OASCycl')
+        #  __ __ __ __ __
+        #  __ __ __ __ __
+        #  __ __ Rx __ __
+        #  B4 Ba Ba B0 Bb
+        #  __ __ Cx __ __
+        self.b1 = Block( arena = self.arena )
+        self.b2 = Block( arena = self.arena )
+        self.b3 = Block( arena = self.arena )
+        self.b4 = Block( arena = self.arena )
+        self.b5 = Block( arena = self.arena )
+        self.arena.add_to_position(3, 0, self.b1)
+        self.arena.add_to_position(3, 1, self.b2)
+        self.arena.add_to_position(3, 2, self.b3)
+        self.arena.add_to_position(3, 3, self.b4)
+        self.arena.add_to_position(3, 4, self.b5)
+
+        LAgent_class = getattr(agentcls, 'LivingAgent')
+
+        ## Cx
+        cx = type('cc', (LAgent_class,), {})
+
+        attr = { 'volume':1, 'energy':1, 'epoch_penalty': 0,'see_length':0, }
+        self.cx = cx( arena = self.arena, state_args=attr, priority=5 )
+
+        self.arena.add_to_position(4, 2, self.cx)
+
+        ## Rx agent
+        actions = [ 
+            getattr(actioncls, 'eat')( { 'target_classes': ['cx'],
+                                        'max_distance': 0,
+                                        'energy_gain': 6,
+                                        'max_energy': 100,
+            } ),
+            getattr(actioncls, 'move')( {'utility_base_value':1,'distance': 1, 'energy_penalty': 0, 'change_direction_prob': 0 }),
+        ]
+
+        rx = type('rx', (LAgent_class,), {})
+        attr = { 'volume':1, 'energy':1, 'epoch_penalty': 0,'see_length':2, 'direction': 8 }
+        self.rx = rx( arena = self.arena, state_args=attr, priority=5, actions=actions )
+        self.arena.add_to_position(2, 2, self.rx)
+
+
+    def test_glide_move_fail(self):
+        debug( self.arena )
+        # check agents positions
+        self.assertEqual(self.cx.getposition(), (4, 2) )
+        self.assertEqual(self.rx.getposition(), (2, 2) )
+        self.assertEqual(self.rx.direction(), 8 )
+        self.assertIsNone(self.rx.asmstate.t_get_attr('fail_move_dir',None))
+
+        self.arena.run_step()
+        debug( self.arena )
+        self.assertEqual(self.rx.getposition(), (2, 2) )
+        self.assertEqual(self.rx.direction(), 8 )
+        self.assertEqual(self.rx.asmstate.t_get_attr('fail_move_dir',None), 8)
+
+        self.arena.run_step()
+        debug( self.arena )
+
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

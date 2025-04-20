@@ -480,7 +480,9 @@ class simple_move(action):
         # force the distance that is used for the move
         ds = self.get_action_param_value(state,'distance',0)
         
-        if utility > self.utility_base_value(state):
+        if( utility > self.utility_base_value(state) and dr != 5
+           and dr != state.t_set_attr('fail_move_dir', None) ):
+            # to avoid the move in the same failed direction
             # request move is better than the base utility
             return utility, { 'direction': dr, 'move_distance': ds }
         else:
@@ -499,7 +501,8 @@ class simple_move(action):
         distance = self.get_action_param_value(state,'distance')
         # get the current direction
         new_direction = state.t_get_attr('direction', None)
-        if random() < self.get_action_param_value(state,'change_direction_prob'):
+        if( new_direction == state.t_get_attr('fail_move_dir' )
+           or random() < self.get_action_param_value(state,'change_direction_prob') ):
             # change direction
             new_direction = choice([1,2,3,4,6,7,8,9])
         
@@ -513,7 +516,10 @@ class simple_move(action):
             state.t_set_attr('direction', result['direction'])
             direction = result['direction']
             distance = result['move_distance']
-            agent.move(direction=direction, distance=distance)
+            move_result = agent.move(direction=direction, distance=distance)
+            if move_result is False:
+                # no move done
+                state.t_set_attr('fail_move_dir', result['direction'], tick_validity=1)
         return
 
 

@@ -27,7 +27,7 @@ class MatrixGUI:
         #     self.arena.add_to_position(random.randint(0, rows-1), random.randint(0, cols-1), obj)
         # ## TEST ONLY
         self.root = tk.Tk()
-        self.root.attributes("-fullscreen", True)  # Force full-screen mode
+        self.root.attributes("-fullscreen", False)  # Force full-screen mode
         self.max_speed = 1  # Maximum speed for the simulation
         self.last_step_time = 0  # Last time the step method was called
         root = self.root
