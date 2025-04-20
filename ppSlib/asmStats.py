@@ -38,7 +38,8 @@ class asmStats():
                     l=self._stats_data[self.step].get(ocls,[])
                     l.append(v)
                     self._stats_data[self.step][ocls] = l
-                    print( f"|| stats: {obj} {v}")
+                    if( self.debug):
+                        print( f"|| stats: {obj} {v}")
                     continue
             else:
                 if self.debug:

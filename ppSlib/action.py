@@ -504,7 +504,7 @@ class simple_move(action):
         if( new_direction == state.t_get_attr('fail_move_dir' )
            or random() < self.get_action_param_value(state,'change_direction_prob') ):
             # change direction
-            new_direction = choice([1,2,3,4,6,7,8,9])
+            new_direction = random_direction_selector(curr_dir=new_direction, prob_change=1)
         
         state.t_set_attr('direction', new_direction)
         state.t_set_attr('move_distance', distance)
@@ -720,7 +720,7 @@ def opposite_direction_to(direction):
 
     d = {1:9, 2:8, 3:7, 4:6, 5:None, 6:4, 7:3,8:2,9:1}[direction]
     if d is None:
-        d = choice([1,2,3,4,6,7,8,9])
+        d = random_direction_selector(prob_change=1)
 
     return d
 
