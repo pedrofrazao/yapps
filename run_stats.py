@@ -85,29 +85,44 @@ def load_multiple_csv(filepaths, required_epochs=None):
         
     Returns:
     --------
-    DataFrame : Combined DataFrame from all valid files
+    tuple: (DataFrame, dict)
+        - Combined DataFrame from all valid files
+        - Dictionary with statistics about all processed files
     """
     all_dfs = []
     valid_files = 0
     skipped_files = 0
     
+    # Track information about file completion
+    file_stats = {
+        'valid_files': [],
+        'skipped_files': []
+    }
+    
     for filepath in filepaths:
         print(f"Loading data from {filepath}...")
         try:
             df = load_csv(filepath)
+            max_epoch = df['epoch'].max()
             
             # Check if this file has enough epochs
-            if required_epochs is not None:
-                max_epoch = df['epoch'].max()
-                if max_epoch < required_epochs - 1:  # -1 since epochs might be 0-indexed
-                    print(f"  Skipping {filepath}: Only reached epoch {max_epoch}, required {required_epochs}")
-                    skipped_files += 1
-                    continue
+            if required_epochs is not None and max_epoch < required_epochs - 1:
+                print(f"  Skipping {filepath}: Only reached epoch {max_epoch}, required {required_epochs}")
+                skipped_files += 1
+                file_stats['skipped_files'].append({
+                    'filepath': filepath,
+                    'max_epoch': max_epoch
+                })
+                continue
             
             # Add a source column to track which file the data came from
             df['source_file'] = Path(filepath).name
             all_dfs.append(df)
             valid_files += 1
+            file_stats['valid_files'].append({
+                'filepath': filepath,
+                'max_epoch': max_epoch
+            })
             
         except Exception as e:
             print(f"  Error loading {filepath}: {str(e)}")
@@ -121,7 +136,12 @@ def load_multiple_csv(filepaths, required_epochs=None):
     print(f"Successfully loaded {valid_files} files, skipped {skipped_files} files")
     print(f"Combined dataset has {len(combined_df)} records across {combined_df['epoch'].nunique()} epochs")
     
-    return combined_df
+    # Add summary statistics to the file_stats dictionary
+    file_stats['total_files'] = valid_files + skipped_files
+    file_stats['valid_count'] = valid_files
+    file_stats['skipped_count'] = skipped_files
+    
+    return combined_df, file_stats
 
 def parse_chromosomes(df):
     """Parse chromosome encoding into separate columns"""
@@ -149,6 +169,107 @@ def analyze_by_epoch(df):
     epoch_stats = epoch_stats.rename(columns={'agent_class_count': 'agent_count'})
     
     return epoch_stats
+
+def plot_simulation_end_distribution(file_stats, output_dir=None, num_bins=10):
+    """
+    Plot a histogram showing how many simulations ended at each epoch bin.
+    
+    Parameters:
+    -----------
+    file_stats : dict
+        Dictionary with statistics about loaded files
+    output_dir : Path, optional
+        Directory to save the output plot
+    num_bins : int
+        Number of bins for the histogram
+    """
+    # Combine all files (both valid and skipped) to analyze their end epochs
+    all_files = file_stats['valid_files'] + file_stats['skipped_files']
+    
+    # Extract maximum epochs reached by each simulation and filter out any NaN values
+    max_epochs = [file['max_epoch'] for file in all_files if not pd.isna(file['max_epoch'])]
+    
+    if not max_epochs:
+        print("No data available for end epoch analysis")
+        return
+    
+    # Determine range for binning
+    min_epoch = min(max_epochs)
+    max_epoch = max(max_epochs)
+    epoch_range = max_epoch - min_epoch + 1
+    
+    # Create bins with equal width
+    bin_size = max(1, epoch_range / num_bins)
+    bin_edges = [min_epoch + i * bin_size for i in range(num_bins+1)]
+    
+    # Create labels for the bins with safe integer conversion
+    labels = []
+    for i in range(len(bin_edges)-1):
+        try:
+            start = int(bin_edges[i])
+            end = int(bin_edges[i+1] - 1)
+            labels.append(f"{start}-{end}")
+        except (ValueError, TypeError):
+            # If conversion fails, use string format without conversion
+            start = bin_edges[i]
+            end = bin_edges[i+1]
+            labels.append(f"{start:.1f}-{end:.1f}")
+    
+    # Count how many simulations ended in each bin
+    hist, _ = np.histogram(max_epochs, bins=bin_edges)
+    
+    # Create a DataFrame for easier plotting
+    hist_df = pd.DataFrame({
+        'epoch_range': labels,
+        'count': hist
+    })
+    
+    # Create a bar chart
+    plt.figure(figsize=(12, 6))
+    plt.bar(hist_df['epoch_range'], hist_df['count'], color='cornflowerblue')
+    plt.title('Number of Simulations by End Epoch')
+    plt.xlabel('End Epoch Range')
+    plt.ylabel('Number of Simulations')
+    plt.grid(True, linestyle='--', alpha=0.7, axis='y')
+    plt.xticks(rotation=45)
+    
+    # Add count labels on top of bars
+    for i, v in enumerate(hist_df['count']):
+        if v > 0:  # Only add labels to non-zero bars
+            plt.text(i, v + 0.5, str(v), ha='center')
+    
+    plt.tight_layout()
+    
+    if output_dir:
+        plt.savefig(output_dir / 'simulation_end_distribution.png')
+        plt.close()
+    else:
+        plt.show()
+    
+    # Also create a pie chart showing completed vs incomplete simulations
+    if 'valid_count' in file_stats and 'skipped_count' in file_stats:
+        plt.figure(figsize=(8, 8))
+        
+        # Define data for the pie chart
+        labels = ['Completed', 'Incomplete']
+        sizes = [file_stats['valid_count'], file_stats['skipped_count']]
+        
+        # Only create the chart if there's data to display
+        if sum(sizes) > 0:
+            # Calculate percentages
+            percentages = [100 * size / sum(sizes) for size in sizes]
+            labels = [f"{labels[i]} ({sizes[i]}, {percentages[i]:.1f}%)" for i in range(len(labels))]
+            
+            plt.pie(sizes, labels=labels, autopct='%1.1f%%', 
+                   colors=['lightgreen', 'lightcoral'], startangle=90)
+            plt.title('Simulation Completion Status')
+            plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
+            
+            if output_dir:
+                plt.savefig(output_dir / 'simulation_completion_pie.png')
+                plt.close()
+            else:
+                plt.show()
 
 def plot_energy_stats(df, output_path=None):
     """Plot energy statistics by epoch"""
@@ -562,6 +683,115 @@ def plot_simulation_completeness(df, expected_epochs, output_dir=None, num_group
     else:
         plt.show()
 
+def plot_rabbit_statistics(df, output_dir=None, num_epoch_groups=10):
+    """
+    Plot statistics about rabbit population:
+    1. Mean number of rabbits present per epoch group
+    2. Number of simulations that had any rabbits in each epoch group
+    
+    Parameters:
+    -----------
+    df : DataFrame
+        Combined DataFrame with simulation data
+    output_dir : Path, optional
+        Directory to save the output plots
+    num_epoch_groups : int
+        Number of epoch groups to divide the range into
+    """
+    if 'agent_class' not in df.columns or 'source_file' not in df.columns:
+        print("Skipping rabbit statistics: Missing required columns")
+        return
+    
+    # Create a copy of the dataframe to avoid modifying the original
+    plot_df = df.copy()
+    
+    # Filter for rabbit agents
+    rabbit_df = plot_df[plot_df['agent_class'] == 'RABBIT']
+    
+    if len(rabbit_df) == 0:
+        print("No rabbit data found in the dataset")
+        return
+    
+    # Determine epoch range and create bins
+    min_epoch = plot_df['epoch'].min()
+    max_epoch = plot_df['epoch'].max()
+    epoch_range = max_epoch - min_epoch + 1
+    
+    # Create bin edges with approximately equal intervals
+    bin_size = max(1, epoch_range / num_epoch_groups)
+    bin_edges = [min_epoch + i * bin_size for i in range(num_epoch_groups+1)]
+    
+    # Create labels for the bins
+    labels = [f"{int(bin_edges[i])}-{int(bin_edges[i+1]-1)}" for i in range(len(bin_edges)-1)]
+    
+    # Add epoch group column to both dataframes
+    plot_df['epoch_group'] = pd.cut(plot_df['epoch'], bins=bin_edges, labels=labels, include_lowest=True)
+    rabbit_df['epoch_group'] = pd.cut(rabbit_df['epoch'], bins=bin_edges, labels=labels, include_lowest=True)
+    
+    # Calculate mean rabbits per epoch group
+    # First, count rabbits in each epoch for each simulation
+    rabbit_counts = rabbit_df.groupby(['source_file', 'epoch']).size().reset_index(name='rabbit_count')
+    
+    # Add epoch group to these counts
+    rabbit_counts['epoch_group'] = pd.cut(rabbit_counts['epoch'], bins=bin_edges, labels=labels, include_lowest=True)
+    
+    # Calculate mean rabbit count per epoch group
+    mean_rabbits = rabbit_counts.groupby('epoch_group')['rabbit_count'].mean().reset_index()
+    
+    # Calculate how many simulations had rabbits in each epoch group
+    # Get unique (source_file, epoch_group) combinations that had rabbits
+    simulations_with_rabbits = rabbit_df.groupby(['source_file', 'epoch_group']).size().reset_index()
+    
+    # Count how many unique simulations had rabbits in each epoch group
+    sim_counts = simulations_with_rabbits.groupby('epoch_group').size().reset_index(name='simulations_with_rabbits')
+    
+    # Get total simulation count for percentage calculation
+    total_simulations = plot_df['source_file'].nunique()
+    sim_counts['percentage'] = sim_counts['simulations_with_rabbits'] / total_simulations * 100
+    
+    # Plot 1: Mean rabbit population per epoch group
+    plt.figure(figsize=(12, 6))
+    plt.bar(mean_rabbits['epoch_group'], mean_rabbits['rabbit_count'], color='lightgreen')
+    plt.title('Mean Rabbit Population by Epoch Group')
+    plt.xlabel('Epoch Group')
+    plt.ylabel('Mean Number of Rabbits')
+    plt.grid(True, linestyle='--', alpha=0.7, axis='y')
+    plt.xticks(rotation=45)
+    
+    # Add count labels on top of bars
+    for i, v in enumerate(mean_rabbits['rabbit_count']):
+        plt.text(i, v + 0.5, f"{v:.1f}", ha='center')
+    
+    plt.tight_layout()
+    
+    if output_dir:
+        plt.savefig(output_dir / 'mean_rabbit_population.png')
+        plt.close()
+    else:
+        plt.show()
+    
+    # Plot 2: Percentage of simulations with rabbits per epoch group
+    plt.figure(figsize=(12, 6))
+    plt.bar(sim_counts['epoch_group'], sim_counts['percentage'], color='skyblue')
+    plt.title('Percentage of Simulations with Rabbits by Epoch Group')
+    plt.xlabel('Epoch Group')
+    plt.ylabel('Percentage of Simulations')
+    plt.grid(True, linestyle='--', alpha=0.7, axis='y')
+    plt.xticks(rotation=45)
+    plt.ylim(0, 100)  # Set y-axis limit from 0 to 100 percent
+    
+    # Add percentage labels on top of bars
+    for i, v in enumerate(sim_counts['percentage']):
+        plt.text(i, v + 2, f"{v:.1f}%", ha='center')
+    
+    plt.tight_layout()
+    
+    if output_dir:
+        plt.savefig(output_dir / 'simulations_with_rabbits.png')
+        plt.close()
+    else:
+        plt.show()
+
 def save_chromosome_stats(stats, output_path):
     """Save chromosome statistics to CSV"""
     # Convert nested dictionary to a more CSV-friendly format
@@ -607,7 +837,12 @@ def main():
     
     # Load the data from all CSV files
     try:
-        df = load_multiple_csv(args.csv_files, args.num_epochs)
+        df, file_stats = load_multiple_csv(args.csv_files, args.num_epochs)
+        
+        # Plot simulation end distribution
+        print("Analyzing simulation end distribution...")
+        plot_simulation_end_distribution(file_stats, output_dir)
+        
     except ValueError as e:
         print(f"Error: {str(e)}")
         return 1
@@ -646,6 +881,10 @@ def main():
     print("Generating gene frequency plots...")
     plot_chromosome_frequency_by_epoch(df, output_dir)
     plot_chromosome_value_counts(df, output_dir)
+    
+    # Add rabbit population statistics
+    print("Analyzing rabbit population...")
+    plot_rabbit_statistics(df, output_dir)
     
     # Add simulation completeness analysis
     if args.num_epochs:
