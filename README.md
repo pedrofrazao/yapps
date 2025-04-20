@@ -10,6 +10,14 @@ python3 ppSlib/run_all_tests.py
 
 python3 -m unittest  discover 
 
+# Tests #
+
+```
+for((I=100;I<200;I=I+1));  do ./ppS-cli.py --epochs 250 --batch -f rabbit_fox2.yml | tee data2/rabbit_fox2v2-250-${I}.csv; done
+~/.venvs/yapps/bin/python3 ./data/run_stats.py --num-epochs 250 -o data2/ data2/*.csv
+```
+
+
 
 ## packages ##
 

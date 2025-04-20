@@ -14,3 +14,5 @@ img
 diagrams
 models
 .env/
+data/
+data2/
