@@ -14,7 +14,8 @@ class YMLArenaLoader:
         rows = arena_config['rows']
         cols = arena_config['cols']
         torus = arena_config.get('torus', True)  # Default to False if not specified
-        arena = ArenaSyncModel(rows, cols, torus=torus)
+        sync_model = arena_config.get('sync_model', 'OASCycl')
+        arena = ArenaSyncModel(rows, cols, torus=torus, sync_model=sync_model)
 
         for agent_config in arena_config['agents']:
             agent_type = agent_config['type']

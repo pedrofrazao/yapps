@@ -1,10 +1,13 @@
 from abc import ABC, abstractmethod
+import random
 
 def sync_model_factory(model_type="OASCycl"):
     if model_type == "Sync":
         return Sync()
     elif model_type == "OASCycl":
         return OASCycl()
+    elif model_type == "RandOrder":
+        return RandOrder()
     else:
         raise ValueError(f"Unknown model type: {model_type}")
 
@@ -85,6 +88,15 @@ class OASCycl(SyncModel):
     #     return sorted(obj_list)
     def run_single_step(self, obj_list):
         for obj in obj_list:
+            obj.run_interaction()
+            obj.run_update()
+
+
+class RandOrder(SyncModel):
+    def run_single_step(self, obj_list):
+        l = list(obj_list)
+        random.shuffle(l)
+        for obj in l:
             obj.run_interaction()
             obj.run_update()
 

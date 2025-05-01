@@ -265,7 +265,10 @@ class Arena:
     def __add_to_surrounding_position(self, x, y, obj):
         """Add an object to a random position in the arena."""
         s = self.get_pos_surrounding(x, y, 0, 2)
-        x,y = random.choice( s.find_empty_position() )
+        el = s.find_empty_position()
+        if len(el) == 0:
+            return False
+        x,y = random.choice( el )
         if( x is not None and y is not None ):
             return self.add_to_position(x, y, obj)
         return False
