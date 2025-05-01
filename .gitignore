@@ -13,6 +13,6 @@ tests
 img
 diagrams
 models
-.env/
+.env
 data/
 data2/

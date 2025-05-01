@@ -1,0 +1,133 @@
+arena:
+  rows: 40
+  cols: 40
+  agents:
+    - type: Rabbit
+      class: LivingGAAgent
+      count: 10
+      attributes:
+        energy: 25
+        priority: 20
+        epoch_penalty: 1
+        see_length: 2
+        volume: 33
+        nostats: False
+      actions:
+        - name: move
+          params:
+            utility_base_value: 1
+            distance: 1
+            energy_penalty: 0
+            change_direction_prob: 0
+        - name: rest
+          params:
+            utility_base_value: 0.1
+            energy_recover: 0
+            max_recoverable_energy: 10
+        - name: eat
+          params:
+            max_distance: 0
+            target_classes: [Carrot]
+            energy_gain: 6
+            max_energy: 100
+        - name: mate
+          params:
+            mate_species: [Rabbit]
+            energy_penalty: 5
+            utility_base_value: 10
+            minimal_energy: 10
+            nearby_distance: 0
+            minimal_age: 5
+        - name: escape
+          params:
+            utility_base_value: 0
+            from_species: [Fox,Trap]
+            from_count_factor: 5
+            from_distance_factor: 2
+      alleles:
+        - name: move|change_direction_prob
+          values: [0.005, 0.01, 0.02, 0.04, 0.08, 0.16]
+          description: prob to change direction
+        - name: mate|minimal_age
+          values: [ 2, 3, 4]
+          description: minimal age to mate
+        - name: escape|from_distance_factor
+          values: [1, 2, 4, 6]
+          description: distance factor to escape from fox
+        - name: escape|from_count_factor
+          values: [0.1, 0.5, 1, 2, 3, 6]
+          description: count factor to escape from fox
+        - name: see_length
+          values: [0,1, 2]
+          description: see length
+
+    - type: Fox
+      class: LivingAgent
+      count: 2
+      attributes:
+        energy: 100
+        epoch_penalty: 0
+        see_length: 3
+        volume: 55
+        rebirth: True
+        priority: 75
+      actions:
+        - name: move
+          params:
+            utility_base_value: 1
+            distance: 1
+            energy_penalty: 1
+            change_direction_prob: 0.1
+        - name: eat
+          params:
+            utility_base_value: 0
+            max_distance: 1
+            target_classes: [Rabbit]
+            energy_gain: 10
+            max_energy: 100
+        - name: mate
+          params:
+            mate_species: [Fox]
+            energy_penalty: 5
+            utility_base_value: 5
+            minimal_energy: 25
+            nearby_distance: 0
+            minimal_age: 10
+
+    - type: Carrot
+      class: LivingAgent
+      count: 50
+      attributes:
+        energy: 25
+        epoch_penalty: 0
+        see_length: 1
+        volume: 1
+        direction: 5
+        rebirth: True
+
+    - type: Rock
+      class: Agent
+      count: 10
+      attributes:
+        energy: 1
+        epoch_penalty: 0
+        see_length: 0
+        volume: 100
+
+    - type: Trap
+      class: LivingAgent
+      count: 5
+      attributes:
+        energy: 1
+        epoch_penalty: 0
+        see_length: 0
+        volume: 1
+        direction: 5
+        priority: 100
+      actions:
+        - name: eat
+          params:
+            max_distance: 0
+            target_classes: [Rabbit,Fox]
+            energy_gain: 0
+            max_energy: 10000
