@@ -250,14 +250,26 @@ class Arena:
     
     def add_to_random_position(self, obj, empty=False):
         """Add an object to a random position in the arena."""
-        x = random.randint(0, self.rows-1)
-        y = random.randint(0, self.cols-1)
+        if empty is True:
+            raise NotImplementedError("empty=True not implemented")
+
         for i in range(0,10):
-            if empty and self.get_num_objects(x, y) != 0:
-                continue 
-            if self.add_to_position(x, y, obj):
+            x = random.randint(0, self.rows-1)
+            y = random.randint(0, self.cols-1)
+            added = self.__add_to_surrounding_position(x, y, obj)
+            if added is True:
                 return True
         return False
+
+
+    def __add_to_surrounding_position(self, x, y, obj):
+        """Add an object to a random position in the arena."""
+        s = self.get_pos_surrounding(x, y, 0, 2)
+        x,y = random.choice( s.find_empty_position() )
+        if( x is not None and y is not None ):
+            return self.add_to_position(x, y, obj)
+        return False
+
 
     def remove_from_position(self, x, y, obj):
         return self._remove_from_position(x, y, obj)
