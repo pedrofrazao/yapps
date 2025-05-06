@@ -19,7 +19,6 @@ def parse_arguments():
     """Parse command-line arguments"""
     parser = argparse.ArgumentParser(description="Generate plots from simulation CSV data")
     parser.add_argument("--file", required=True, help="YAML file that defines the simulation")
-    parser.add_argument("--epoch", type=int, required=True, help="Maximum epoch to analyze")
     parser.add_argument("csv_files", nargs="+", help="List of CSV files to load")
     return parser.parse_args()
 
@@ -28,7 +27,7 @@ def load_yaml_config(yaml_path):
     loader = YMLArenaLoader()
     return loader.load_yml_config(yaml_path)
 
-def extract_data_from_csv(csv_file, max_epoch, arena_config):
+def extract_data_from_csv(csv_file, arena_config):
     """Extract data from CSV file by parsing its specific format, using ArenaConfig for gene naming"""
     with open(csv_file, 'r') as f:
         content = f.read()
@@ -55,8 +54,6 @@ def extract_data_from_csv(csv_file, max_epoch, arena_config):
         if len(parts) >= 6:
             try:
                 epoch = int(parts[0])
-                if epoch > max_epoch:
-                    continue
                     
                 agent_type = parts[1]
                 energy = int(parts[2])
@@ -92,13 +89,14 @@ def extract_data_from_csv(csv_file, max_epoch, arena_config):
     
     return epoch_data, allele_data
 
-def analyze_data(csv_files, max_epoch, arena_config):
+def analyze_data(csv_files, arena_config):
     """Analyze data from multiple CSV files using arena configuration"""
     all_agent_data = {}
     all_allele_data = {}
+    max_epoch = 0
     
     for csv_file in csv_files:
-        agent_data, allele_data = extract_data_from_csv(csv_file, max_epoch, arena_config)
+        agent_data, allele_data = extract_data_from_csv(csv_file, arena_config)
         
         # Merge agent data
         for epoch, epoch_data in agent_data.items():
@@ -110,6 +108,8 @@ def analyze_data(csv_files, max_epoch, arena_config):
         
         # Merge allele data
         for epoch, epoch_alleles in allele_data.items():
+            max_epoch = max(max_epoch, epoch)
+            
             if epoch not in all_allele_data:
                 all_allele_data[epoch] = {}
             
@@ -572,7 +572,7 @@ def main():
     
     yaml_config = load_yaml_config(args.file)
     
-    summary_stats = analyze_data(args.csv_files, args.epoch, yaml_config)
+    summary_stats = analyze_data(args.csv_files, yaml_config)
     
     create_plots(summary_stats)
     
