@@ -13,14 +13,17 @@ python3 -m unittest  discover
 # Tests #
 
 ```
-DATADIR="data/eq_vs_ne_priority"
-RUNDIR="rabbit_fox2_eq_prio"
-YML=rabbit_fox2_equal_priority.yml
+RUNID="after2_7e950fd"
+DATADIR="data/eq_vs_ne_vs_rand"
+RUNCOUNT=500
+EPOCHS=250
+RUNDIR="rabbit_fox2_random"
+YML=rabbit_fox2_random.yml
 DOUT="${DATADIR}/${RUNDIR}"
 mkdir -p ${DOUT}
 source ./bin/activate
-for((I=100;I<500;I=I+1));  do ./ppS-cli.py --epochs 250 --batch -f ${DATADIR}/${YML} | tee ${DOUT}/${YML}-${I}.csv; done
-~/.venvs/yapps/bin/python3 ./run_stats.py --num-epochs 250 -o ${DOUT} ${DOUT}/*.csv
+for((I=100;I<(($RUNCOUNT+100));I=I+1));  do ./ppS-cli.py --epochs $EPOCHS --batch -f ${DATADIR}/${YML} | tee ${DOUT}/${RUNID}_${YML}-${I}.csv; done
+~/.venvs/yapps/bin/python3 ./run_stats.py --num-epochs $EPOCHS -o ${DOUT} ${DOUT}/${RUNID}_${YML}*.csv
 ```
 
 
