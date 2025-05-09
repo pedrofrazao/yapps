@@ -26,6 +26,17 @@ for((I=100;I<(($RUNCOUNT+100));I=I+1));  do ./ppS-cli.py --epochs $EPOCHS --batc
 ~/.venvs/yapps/bin/python3 ./run_stats.py --num-epochs $EPOCHS -o ${DOUT} ${DOUT}/${RUNID}_${YML}*.csv
 ```
 
+Or better
+
+```
+./ppS-cli.py --batch -f data/simple/rabbit.yml --parallel 4 --epochs 50 --runs 50 --progress
+```
+
+## gen plots ##
+
+```
+python3 plot_simulation.py --file data/eq_vs_ne_vs_rand_2/rabbit_fox2.yml  data/eq_vs_ne_vs_rand_2/rabbit_fox2/rabbit_fox2-*.csv
+```
 
 
 ## packages ##

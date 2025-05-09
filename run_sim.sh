@@ -48,7 +48,7 @@ do
     # Run the simulation command with the specified parameters
     echo "Running simulation for $k..."
 
-    for((I=100;I<(($NUM_SIMULATIONS+100));I=I+1))
+    for((I=1000;I<(($NUM_SIMULATIONS+1000));I=I+1))
       do ./ppS-cli.py --epochs $NUM_EPOCHS --batch -f $k | tee "$DIRECTORY/${base_name}/${base_name}-${I}.csv"
     done
     ~/.venvs/yapps/bin/python3 ./run_stats.py --num-epochs $NUM_EPOCHS -o "${DIRECTORY}/${base_name}" ${DIRECTORY}/${base_name}/${base_name}-*.csv

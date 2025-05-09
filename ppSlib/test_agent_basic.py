@@ -149,6 +149,20 @@ class TestAgentGrass(unittest.TestCase):
                 self.assertEqual(a.energy(), expected_energy + 2 )
         self.assertEqual(mate_count, 1)
 
+        ## check new agents age and state
+        new_agents = []
+        for a in self.arena.get_objects():
+            if( a not in self.alist ):
+                new_agents.append(a)
+
+        self.assertEqual(len(new_agents), 1)
+        a = new_agents[0]
+        self.assertEqual(a.getsattr('age'), 0 )
+        self.assertEqual(a.getsattr('energy'), 2)
+
+        for a in self.arena.get_objects():
+            print(a.stats())
+
         return
     
 

@@ -46,6 +46,8 @@ class Agent(asmObject):
                 kwargs[k] = state[k]
                 del state[k]
 
+        if 'age' in kwargs:
+            del kwargs['age']
         state['age'] = 0
         super().__init__( name, state, **kwargs )
 
@@ -234,15 +236,16 @@ class LivingAgent(Agent,asmObjectStat):
     ## accept a direction selector function
     ## - LivingAgent( select_direction=lambda surrounding: randint(1,9) if randint(1,10) > 7 else self.direction() )
     def __init__(self, dir=5, **kwargs):
+        kwargs['state_args'] = Agent.add_to_state_args( { 'see_length': 0 }, **kwargs )
+        kwargs['state_args'] = Agent.add_to_state_args( { 'epoch_penalty': 1 }, **kwargs )
+        kwargs['state_args'] = Agent.add_to_state_args( { 'move_distance': 1 }, **kwargs )
+        kwargs['state_args'] = Agent.add_to_state_args({'age': 0}, **kwargs)
+
         # store the initial state args for the mate function
         self._init_args = kwargs.copy()
         self._init_args['state_args'] = copy.deepcopy(kwargs['state_args'])
         self._init_args['dir'] = dir
 
-        kwargs['state_args'] = Agent.add_to_state_args( { 'see_length': 0 }, **kwargs )
-        kwargs['state_args'] = Agent.add_to_state_args( { 'epoch_penalty': 1 }, **kwargs )
-        kwargs['state_args'] = Agent.add_to_state_args( { 'move_distance': 1 }, **kwargs )
-        kwargs['state_args'] = Agent.add_to_state_args({'age': 0}, **kwargs)
         if dir == 5:
             dir = random_direction_selector()
 

@@ -109,7 +109,7 @@ def analyze_data(csv_files, arena_config):
         # Merge allele data
         for epoch, epoch_alleles in allele_data.items():
             max_epoch = max(max_epoch, epoch)
-            
+
             if epoch not in all_allele_data:
                 all_allele_data[epoch] = {}
             
@@ -571,10 +571,13 @@ def main():
     args = parse_arguments()
     
     yaml_config = load_yaml_config(args.file)
+
+    yaml_file_path = Path(args.file).with_suffix(".plots").resolve()
+    # print(f"YAML file path: {yaml_file_path}")
     
     summary_stats = analyze_data(args.csv_files, yaml_config)
     
-    create_plots(summary_stats)
+    create_plots(summary_stats, output_dir=yaml_file_path)
     
     write_summary_data(summary_stats)
 

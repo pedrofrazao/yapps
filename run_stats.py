@@ -7,6 +7,8 @@ import seaborn as sns
 import numpy as np
 import io
 
+from ppSlib.yml_loader import YMLArenaLoader
+
 # Add a global mapping from gene names to descriptive labels
 GENE_LABELS = {
     'gene1': 'move_change_direction_prob',
@@ -64,7 +66,7 @@ def load_csv(filepath):
     df['direction'] = pd.to_numeric(df['direction'])
     
     # Parse chromosome encoding
-    df = parse_chromosomes(df)
+    df = parse_chromosomes(df,[])
     
     # Extract action type
     df['action_type'] = df['action_info'].apply(lambda x: x.split(' - ')[0] if isinstance(x, str) else None)
@@ -143,16 +145,13 @@ def load_multiple_csv(filepaths, required_epochs=None):
     
     return combined_df, file_stats
 
-def parse_chromosomes(df):
-    """Parse chromosome encoding into separate columns"""
-    # Extract the five chromosome values
+def parse_chromosomes(df, gene_names):
+    """Parse chromosome encoding into separate columns based on provided gene names"""
+    # Extract chromosome values
     chromosome_data = df['chromosome'].str.split('|', expand=True)
-    if len(chromosome_data.columns) >= 5:
-        df['gene1'] = pd.to_numeric(chromosome_data[0], errors='coerce')
-        df['gene2'] = pd.to_numeric(chromosome_data[1], errors='coerce')
-        df['gene3'] = pd.to_numeric(chromosome_data[2], errors='coerce')
-        df['gene4'] = pd.to_numeric(chromosome_data[3], errors='coerce')
-        df['gene5'] = pd.to_numeric(chromosome_data[4], errors='coerce')
+    for i, gene_name in enumerate(gene_names):
+        if i < len(chromosome_data.columns):
+            df[gene_name] = pd.to_numeric(chromosome_data[i], errors='coerce')
     
     return df
 
@@ -829,8 +828,11 @@ def main():
     parser.add_argument('csv_files', nargs='+', help='Path to one or more CSV files to analyze')
     parser.add_argument('--output-dir', '-o', help='Directory to save results', default='.')
     parser.add_argument('--num-epochs', '-e', type=int, help='Number of epochs each simulation ran', default=None)
+    parser.add_argument('-f', '--file', type=str, help='File to load the arena from'), help='Number of epochs each simulation ran', default=None)
     args = parser.parse_args()
     
+    config = YMLArenaLoader.load_yml_config(args.file)
+
     # Ensure output directory exists
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
