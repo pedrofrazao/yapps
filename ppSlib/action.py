@@ -305,6 +305,56 @@ class rest(action):
         return None
     
 
+# class mate_plus(mate):
+#     @classmethod
+#     def get_action_params(cls):
+#         return {
+#             'utility_base_value': (1, 'Base utility value for mating'),
+
+#             'mate_species': ([], 'List of species eligible for mating'),
+#             'nearby_distance': (1, 'Maximum distance to consider a mate nearby'),
+
+#             'energy_penalty': (0, 'Energy cost of mating'),
+#             'minimal_energy': (0, 'Minimum energy required to mate'),
+#             'minimal_age': (0, 'Minimum age required to mate'),
+
+#             'crossing_count': (1, 'Number of crossing points for mating'),
+#             'mutation_rate': (0, 'Mutation rate for mating'),
+
+                
+#         }
+
+
+#     def calculate_utility(self, state):
+#         """calculate the utility of the action
+#         return utility_value, run_action_params
+#         """
+#         if self.mate_available(state) is False:
+#             return -1, None
+
+#         # Get the surrounding species
+#         saw = state.saw()
+
+#         if saw is None:
+#             # no surrounding -> no utility
+#             return -1, None
+        
+#         # find mate species
+#         same_species = saw.get_objects_plus_meta(only_class=self.get_action_param_value(state,'mate_species'))
+#         mate_nearby_meta = None
+#         for mmn in same_species:
+#             if( mmn[0].mate_available() ):
+#                 mate_nearby_meta = mmn
+#                 break
+
+#         if mate_nearby_meta is None:
+#             # No mate found in the surrounding
+#             return -1, None
+#         # one target found
+#         state.t_set_attr('mate_meta_nearby', mate_nearby_meta)
+
+
+
 class mate(action):
     """
     needed parameters:
@@ -471,7 +521,8 @@ class simple_move(action):
     def get_action_params(cls):
         return { 'distance': (1,'Distance to move in a single step'),
                  'energy_penalty': (0,'Energy cost of moving'),
-                 'change_direction_prob': (0.1,'Probability of changing direction during movement') }
+                 'change_direction_prob': (0.1,'Probability of changing direction during movement'),
+                  'fail_re_dir': (True,'allow change dir if move fail') }
 
     def calculate_utility(self, state):
         req = self.get_request_move(state)
@@ -501,7 +552,7 @@ class simple_move(action):
         distance = self.get_action_param_value(state,'distance')
         # get the current direction
         new_direction = state.t_get_attr('direction', None)
-        if( new_direction == state.t_get_attr('fail_move_dir' )
+        if( ( new_direction == state.t_get_attr('fail_move_dir' ) and state.t_get_attr( 'fail_re_dir' ) )
            or random() < self.get_action_param_value(state,'change_direction_prob') ):
             # change direction
             new_direction = random_direction_selector(curr_dir=new_direction, prob_change=1)

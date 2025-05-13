@@ -79,11 +79,14 @@ class TestBlock(unittest.TestCase):
         self.arena.add_to_position(3, 4, self.b5)
 
     def test_block(self):
-        g1 = Glide( dir=8, arena = self.arena, state_args={'energy': 10, 'epoch_penalty':1, 'change_direction_prob': 0} )
-        g2 = Glide( dir=1, arena = self.arena, state_args={'energy': 10, 'epoch_penalty':1, 'change_direction_prob': 0} )
+        g1 = Glide( dir=8, arena = self.arena, state_args={'energy': 10, 'epoch_penalty':1, 'change_direction_prob': 0, 'fail_re_dir': False} )
+        g2 = Glide( dir=1, arena = self.arena, state_args={'energy': 10, 'epoch_penalty':1, 'change_direction_prob': 0, 'fail_re_dir': False} )
         self.arena.add_to_position(0, 2, g1)
         self.arena.add_to_position(4, 4, g2)
         if( os.environ.get('DEBUG', False) ):
+            print(self.arena)
+            print(g1.info())
+            print(g2.info())
             print(g1._action_selector)
             print(g2._action_selector)
 
@@ -93,20 +96,36 @@ class TestBlock(unittest.TestCase):
         self.assertEqual(g2.energy(), 10)
 
         self.arena.run_step()
+        if( os.environ.get('DEBUG', False) ):
+            print(self.arena)
+            print(g1.info())
+            print(g2.info())
         self.assertIn(g1, self.arena.get_position(1, 2))
         self.assertIn(g2, self.arena.get_position(4, 4))
         self.assertEqual(g1.energy(), 9)
 
         self.arena.run_step()
+        if( os.environ.get('DEBUG', False) ):
+            print(self.arena)
+            print(g1.info())
+            print(g2.info())
         self.assertIn(g1, self.arena.get_position(2, 2))
         self.assertIn(g2, self.arena.get_position(4, 4))
         self.assertEqual(g2.energy(), 8)
 
         self.arena.run_step()
+        if( os.environ.get('DEBUG', False) ):
+            print(self.arena)
+            print(g1.info())
+            print(g2.info())
         self.assertIn(g1, self.arena.get_position(2, 2))
         self.assertIn(g2, self.arena.get_position(4, 4))
 
         self.arena.run_step()
+        if( os.environ.get('DEBUG', False) ):
+            print(self.arena)
+            print(g1.info())
+            print(g2.info())
         self.assertIn(g1, self.arena.get_position(2, 2))
         self.assertIn(g2, self.arena.get_position(4, 4))
         self.assertEqual(g1.energy(), 6)
@@ -130,7 +149,7 @@ class TestPrey(unittest.TestCase):
         saw = [ i[0] for i in p1.see() ]
         self.assertIn(g1, saw )
         if( os.environ.get('DEBUG', False) ):
-            print( f"{str(p1)} saw >> { ",".join([ str(i) for i in saw ]) }" )
+            print( f"{str(p1)} saw >> { ','.join([ str(i) for i in saw ]) }" )
 
         # test energy
         self.assertEqual(p1.energy(), 10)
@@ -154,7 +173,7 @@ class TestPrey(unittest.TestCase):
         try:
             self.assertNotIn(g1, saw )
         except AssertionError as e:
-            print(f"{str(p1)} saw >> { ",".join([ str(i) for i in saw ]) }")
+            print(f"{str(p1)} saw >> { ','.join([ str(i) for i in saw ]) }")
             print(str(self.arena))
             print(g1._action_selector)
             breakpoint()
