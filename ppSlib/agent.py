@@ -177,12 +177,12 @@ class Agent(asmObject):
         if( onlywithmessage and len(self.msg) == 0 ):
             return None
         if( class_name is False and multi_line is False ):
-            return f"e{self.energy()} a{self.getsattr('age')} d{self.getsattr("direction",0)} {self._more_internal_state_info()}- {self._info_lstmsg()}"
+            return f"e{self.energy()} a{self.getsattr('age')} d{self.getsattr('direction',0)} {self._more_internal_state_info()}- {self._info_lstmsg()}"
         else:
             msg = f"{self.nickname}"
             if( class_name ):
                 msg += f" {self.__class__.__name__}"
-            msg += f" - e{self.energy()} d{self.getsattr("direction")}"
+            msg += f" - e{self.energy()} d{self.getsattr('direction')}"
             if( multi_line ):
                 msg += self._more_internal_state_info()
                 msg += "\n" + "\n".join(self.msg[-3:])

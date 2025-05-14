@@ -15,11 +15,15 @@ from pathlib import Path
 # Import the YMLArenaLoader class
 from ppSlib.yml_loader import YMLArenaLoader  # Adjust this import path as needed
 
+args = None
+
 def parse_arguments():
     """Parse command-line arguments"""
     parser = argparse.ArgumentParser(description="Generate plots from simulation CSV data")
-    parser.add_argument("--file", required=True, help="YAML file that defines the simulation")
-    parser.add_argument("csv_files", nargs="+", help="List of CSV files to load")
+    parser.add_argument("--file", required=False, help="YAML file that defines the simulation")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+    parser.add_argument("--summary-csv", help="Path to a precomputed summary_stats CSV file (alternative to CSV files)")
+    parser.add_argument("csv_files", nargs="*", help="List of CSV files to load")
     return parser.parse_args()
 
 def load_yaml_config(yaml_path):
@@ -77,11 +81,16 @@ def extract_data_from_csv(csv_file, arena_config):
                 allele_info = parts[5]
                 allele_parts = allele_info.split('|')
                 
-                allele_data[epoch][agent_type] = defaultdict(lambda: defaultdict(int))
+                if agent_type not in allele_data[epoch]:
+                    allele_data[epoch][agent_type] = defaultdict(lambda: defaultdict(int))
+
                 # Add allele data
                 i=0
                 for v in allele_parts:
-                    allele_data[epoch][agent_type][agent_genes[agent_type][i]][v] += 1
+                    gene_name = agent_genes[agent_type][i]
+                    if gene_name not in allele_data[epoch][agent_type]:
+                        allele_data[epoch][agent_type][gene_name] = defaultdict(int)
+                    allele_data[epoch][agent_type][ gene_name ][v] += 1
                     i+=1
                     
             except Exception as e:
@@ -95,162 +104,124 @@ def analyze_data(csv_files, arena_config):
     all_allele_data = {}
     max_epoch = 0
     
+    id = 0
     for csv_file in csv_files:
+        id += 1
         agent_data, allele_data = extract_data_from_csv(csv_file, arena_config)
         
-        # Merge agent data
-        for epoch, epoch_data in agent_data.items():
-            if epoch not in all_agent_data:
-                all_agent_data[epoch] = defaultdict(list)
-            
-            for agent_type, agents in epoch_data.items():
-                all_agent_data[epoch][agent_type].extend(agents)
-        
-        # Merge allele data
-        for epoch, epoch_alleles in allele_data.items():
-            max_epoch = max(max_epoch, epoch)
+        all_agent_data[id] = agent_data
+        all_allele_data[id] = allele_data
 
-            if epoch not in all_allele_data:
-                all_allele_data[epoch] = {}
-            
-            for agent_type, genes in epoch_alleles.items():
-                if agent_type not in all_allele_data[epoch]:
-                    all_allele_data[epoch][agent_type] = defaultdict(lambda: defaultdict(int))
-                
-                for gene, alleles in genes.items():
-                    for allele, count in alleles.items():
-                        all_allele_data[epoch][agent_type][gene][allele] += count
-    
+    max_epoch = max([max(epoch_data.keys()) for epoch_data in all_agent_data.values()])
+
     # Calculate summary statistics
-    summary_stats = {}
+    summary_stats = []
     
-    for epoch in range(max_epoch + 1):
-        summary_stats[epoch] = {}
-        
-        # Process agent data
-        agent_data = all_agent_data.get(epoch, {})
-        for agent_type, agents in agent_data.items():
-            if not agents:
+    for i in range(id + 1):
+        if i not in all_agent_data:
+            continue
+        for epoch in range(1,max_epoch + 1):
+            if epoch not in all_agent_data[i]:
                 continue
-            
-            summary_stats[epoch][agent_type] = {
-                "count": len(agents),
-                "avg_energy": sum(a["energy"] for a in agents) / len(agents),
-                "avg_age": sum(a["age"] for a in agents) / len(agents),
-                "allele_counts": {}
-            }
-            
-            # Add allele distribution
-            if epoch in all_allele_data and agent_type in all_allele_data[epoch]:
-                for gene, alleles in all_allele_data[epoch][agent_type].items():
-                    summary_stats[epoch][agent_type]["allele_counts"][gene] = dict(alleles)
+            agent_data = all_agent_data[i].get(epoch, {})
+            for agent_type, agents in agent_data.items():
+                if not agents:
+                    continue
+                
+                row = {
+                    "run": i,
+                    "epoch": epoch,
+                    "agent_type": agent_type,
+                    "count": len(agents),
+                    "avg_energy": sum(a["energy"] for a in agents) / len(agents),
+                    "avg_age": sum(a["age"] for a in agents) / len(agents),
+                }
+                
+                for gene, value in all_allele_data[i][epoch][agent_type].items():
+                    for allele, count in value.items():
+                        k = f"{gene}_{allele}"
+                        if k not in row:
+                            row[k] = 0
+                        row[k] += count                
+                
+                summary_stats.append(row)
     
-    return summary_stats
+    # Convert summary_stats to a pandas DataFrame
+    summary_df = pd.DataFrame(summary_stats)
+    if ( args.verbose ):
+        print(summary_df.head().transpose())
+    return summary_df, max_epoch
 
-def create_plots(summary_stats, output_dir="plots"):
+
+def create_plots(summary_stats, epochs, output_dir="plots"):
     """Generate plots based on the summary statistics"""
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     
-    # Prepare data for plotting - start from epoch 1
-    epochs = [e for e in sorted(summary_stats.keys()) if e >= 1]
-    if not epochs:
-        print("No epoch data starting from epoch 1. Cannot create plots.")
-        return
+    # # Prepare data for plotting - start from epoch 1
+    # epochs = [e for e in sorted(summary_stats.keys()) if e >= 1]
+    # if not epochs:
+    #     print("No epoch data starting from epoch 1. Cannot create plots.")
+    #     return
         
-    agent_types = set()
-    for epoch_data in summary_stats.values():
-        agent_types.update(epoch_data.keys())
-    agent_types = sorted(agent_types)
+    agent_types = sorted(summary_stats['agent_type'].unique())
     
-    # 1. Plot agent count over time
-    plt.figure(figsize=(10, 6))
-    for agent_type in agent_types:
-        counts = [summary_stats[e].get(agent_type, {}).get("count", 0) for e in epochs]
-        plt.plot(epochs, counts, label=agent_type)
+
+    plot_agent_count_boxplot_by_bins(summary_stats, agent_types, epochs, output_dir)    
+    plot_agent_energy_boxplot_by_bins(summary_stats, agent_types, epochs, output_dir)
+    plot_agent_age_boxplot_by_bins(summary_stats, agent_types, epochs, output_dir)
+
+    plot_gene_heatmaps(summary_stats, agent_types, epochs, output_dir)
+
     
-    plt.xlabel('Epoch')
-    plt.ylabel('Number of Agents')
-    plt.title('Agent Population Over Time')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(os.path.join(output_dir, 'agent_count.png'))
-    plt.close()
-    
-    # 2. Plot average energy over time
-    plt.figure(figsize=(10, 6))
-    for agent_type in agent_types:
-        energies = [summary_stats[e].get(agent_type, {}).get("avg_energy", 0) for e in epochs]
-        plt.plot(epochs, energies, label=agent_type)
-    
-    plt.xlabel('Epoch')
-    plt.ylabel('Average Energy')
-    plt.title('Average Agent Energy Over Time')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(os.path.join(output_dir, 'avg_energy.png'))
-    plt.close()
-    
-    # 3. Plot average age over time
-    plt.figure(figsize=(10, 6))
-    for agent_type in agent_types:
-        ages = [summary_stats[e].get(agent_type, {}).get("avg_age", 0) for e in epochs]
-        plt.plot(epochs, ages, label=agent_type)
-    
-    plt.xlabel('Epoch')
-    plt.ylabel('Average Age')
-    plt.title('Average Agent Age Over Time')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(os.path.join(output_dir, 'avg_age.png'))
-    plt.close()
-    
-    # 4. Plot allele distribution for each agent type and gene
-    for agent_type in agent_types:
-        all_genes = set()
-        for epoch_data in summary_stats.values():
-            if agent_type in epoch_data and "allele_counts" in epoch_data[agent_type]:
-                all_genes.update(epoch_data[agent_type]["allele_counts"].keys())
+    # # 4. Plot allele distribution for each agent type and gene
+    # for agent_type in agent_types:
+    #     all_genes = set()
+    #     for epoch_data in summary_stats.values():
+    #         if agent_type in epoch_data and "allele_counts" in epoch_data[agent_type]:
+    #             all_genes.update(epoch_data[agent_type]["allele_counts"].keys())
         
-        for gene in all_genes:
-            plt.figure(figsize=(12, 7))
-            all_alleles = set()
-            for epoch in epochs:
-                if (agent_type in summary_stats[epoch] and 
-                    "allele_counts" in summary_stats[epoch][agent_type] and
-                    gene in summary_stats[epoch][agent_type]["allele_counts"]):
-                    all_alleles.update(summary_stats[epoch][agent_type]["allele_counts"][gene].keys())
+    #     for gene in all_genes:
+    #         plt.figure(figsize=(12, 7))
+    #         all_alleles = set()
+    #         for epoch in epochs:
+    #             if (agent_type in summary_stats[epoch] and 
+    #                 "allele_counts" in summary_stats[epoch][agent_type] and
+    #                 gene in summary_stats[epoch][agent_type]["allele_counts"]):
+    #                 all_alleles.update(summary_stats[epoch][agent_type]["allele_counts"][gene].keys())
             
-            for allele in sorted(all_alleles):
-                counts = []
-                for epoch in epochs:
-                    if (agent_type in summary_stats[epoch] and 
-                        "allele_counts" in summary_stats[epoch][agent_type] and
-                        gene in summary_stats[epoch][agent_type]["allele_counts"]):
-                        counts.append(summary_stats[epoch][agent_type]["allele_counts"][gene].get(allele, 0))
-                    else:
-                        counts.append(0)
-                plt.plot(epochs, counts, label=f'Allele {allele}')
+    #         for allele in sorted(all_alleles):
+    #             counts = []
+    #             for epoch in epochs:
+    #                 if (agent_type in summary_stats[epoch] and 
+    #                     "allele_counts" in summary_stats[epoch][agent_type] and
+    #                     gene in summary_stats[epoch][agent_type]["allele_counts"]):
+    #                     counts.append(summary_stats[epoch][agent_type]["allele_counts"][gene].get(allele, 0))
+    #                 else:
+    #                     counts.append(0)
+    #             plt.plot(epochs, counts, label=f'Allele {allele}')
             
-            plt.xlabel('Epoch')
-            plt.ylabel('Count')
-            plt.title(f'Gene {gene} Allele Distribution for {agent_type}')
-            plt.legend()
-            plt.grid(True)
-            plt.savefig(os.path.join(output_dir, f'allele_{agent_type}_{gene}.png'))
-            plt.close()
+    #         plt.xlabel('Epoch')
+    #         plt.ylabel('Count')
+    #         plt.title(f'Gene {gene} Allele Distribution for {agent_type}')
+    #         plt.legend()
+    #         plt.grid(True)
+    #         plt.savefig(os.path.join(output_dir, f'allele_{agent_type}_{gene}.png'))
+    #         plt.close()
     
-    # 5. Plot average age by epoch bins
-    plot_age_by_bins(summary_stats, agent_types, epochs, output_dir)
+    # # 5. Plot average age by epoch bins
+    # plot_age_by_bins(summary_stats, agent_types, epochs, output_dir)
     
-    # 6. Plot agent count by epoch bins
-    plot_agent_count_by_bins(summary_stats, agent_types, epochs, output_dir)
+    # # 6. Plot agent count by epoch bins
+    # plot_agent_count_by_bins(summary_stats, agent_types, epochs, output_dir)
     
-    # 7. Plot average energy by epoch bins
-    plot_energy_by_bins(summary_stats, agent_types, epochs, output_dir)
+    # # 7. Plot average energy by epoch bins
+    # plot_energy_by_bins(summary_stats, agent_types, epochs, output_dir)
     
     # 8. Plot gene heatmaps showing relative frequency by epoch bins
-    plot_gene_heatmaps(summary_stats, agent_types, epochs, output_dir)
+
+
+
 
 def plot_agent_count_by_bins(summary_stats, agent_types, epochs, output_dir):
     """Create a plot showing agent count by epoch bins and agent type"""
@@ -415,171 +386,229 @@ def plot_energy_by_bins(summary_stats, agent_types, epochs, output_dir):
     plt.close()
 
 def plot_gene_heatmaps(summary_stats, agent_types, epochs, output_dir):
-    """Create heatmaps showing the relative frequency of gene values by epoch bins for each agent type"""
+    """Create heatmaps showing the deviation from uniform allele frequency by epoch bins for each agent type using the summary_stats DataFrame"""
     if not epochs:
         return
-        
-    min_epoch = max(1, min(epochs))
-    max_epoch = max(epochs)
-    
-    # Use np.linspace for more precise bin boundaries
+
+    min_epoch = 1
+    max_epoch = epochs
     bin_edges = np.linspace(min_epoch, max_epoch, 11)
-    bins = []
-    bin_labels = []
-    
-    for i in range(10):
-        bin_start = int(np.ceil(bin_edges[i]))
-        bin_end = int(np.floor(bin_edges[i+1]))
-        if i == 9:  # Make sure the last bin includes max_epoch
-            bin_end = max_epoch
-        
-        bins.append((bin_start, bin_end))
-        bin_labels.append(f"{bin_start}-{bin_end}")
-    
-    heatmap_dir = os.path.join(output_dir, "gene_heatmaps")
-    os.makedirs(heatmap_dir, exist_ok=True)
-    
+    bin_labels = [f"{int(bin_edges[i])}-{int(bin_edges[i+1])}" for i in range(len(bin_edges) - 1)]
+
+    # Add a new column for epoch bins in the DataFrame
+    summary_stats['epoch_bin'] = pd.cut(
+        summary_stats['epoch'],
+        bins=bin_edges,
+        labels=bin_labels,
+        include_lowest=True
+    )
+
+    # Find all gene columns (those with an underscore, e.g., gene_allele)
+    gene_cols = [col for col in summary_stats.columns if '_' in col and col not in ['run','epoch','agent_type','count','avg_energy','avg_age','epoch_bin']]
+    genes = set('_'.join(col.split('_')[:-1]) for col in gene_cols)
+
+    # heatmap_dir = os.path.join(output_dir, "gene_heatmaps")
+    # os.makedirs(heatmap_dir, exist_ok=True)
+
     for agent_type in agent_types:
-        agent_dir = os.path.join(heatmap_dir, f"agent_{agent_type}")
-        os.makedirs(agent_dir, exist_ok=True)
-        
-        all_genes = set()
-        for epoch in epochs:
-            if (agent_type in summary_stats[epoch] and 
-                "allele_counts" in summary_stats[epoch][agent_type]):
-                all_genes.update(summary_stats[epoch][agent_type]["allele_counts"].keys())
-        
-        for gene in all_genes:
-            all_alleles = set()
-            for epoch in epochs:
-                if (agent_type in summary_stats[epoch] and 
-                    "allele_counts" in summary_stats[epoch][agent_type] and
-                    gene in summary_stats[epoch][agent_type]["allele_counts"]):
-                    all_alleles.update(summary_stats[epoch][agent_type]["allele_counts"][gene].keys())
-            
-            all_alleles = sorted(all_alleles, key=lambda x: float(x) if x.replace('.', '', 1).isdigit() else x)
-            
-            freq_matrix = np.zeros((len(bins), len(all_alleles)))
-            
-            for bin_idx, (bin_start, bin_end) in enumerate(bins):
-                bin_epochs = [e for e in epochs if bin_start <= e <= bin_end]
-                if not bin_epochs:
-                    continue
-                
-                bin_counts = defaultdict( lambda: defaultdict(int) )
-                total_agents = defaultdict( lambda: defaultdict(int) )
-                
-                for epoch in bin_epochs:
-                    if (agent_type in summary_stats[epoch] and 
-                        "allele_counts" in summary_stats[epoch][agent_type] and
-                        gene in summary_stats[epoch][agent_type]["allele_counts"]):
-                        
-                        for allele, count in summary_stats[epoch][agent_type]["allele_counts"][gene].items():
-                            bin_counts[epoch][allele] += count
-                            total_agents[epoch][agent_type] += count
-                
-                for allele_idx, allele in enumerate(all_alleles):
-                    if total_agents[epoch][agent_type] > 0: 
-                        freq_matrix[bin_idx, allele_idx] = bin_counts[epoch].get(allele, 0) / total_agents[epoch][agent_type]
+        # agent_dir = os.path.join(heatmap_dir, f"agent_{agent_type}")
+        # os.makedirs(agent_dir, exist_ok=True)
+        agent_data = summary_stats[summary_stats['agent_type'] == agent_type]
+        for gene in genes:
+            # Find all alleles for this gene
+            alleles = sorted([ int(col.split('_')[-1]) for col in gene_cols if col.startswith(gene + '_')])
+            if not alleles:
+                continue
+            n_alleles = len(alleles)
+            expected_freq = 1.0 / n_alleles if n_alleles > 0 else 0
+            # Build a matrix: rows are bins, columns are alleles
+            deviation_matrix = []
+            for bin_label in bin_labels:
+                bin_df = agent_data[agent_data['epoch_bin'] == bin_label]
+                total = bin_df['count'].sum()
+                row = []
+                for allele in alleles:
+                    col_name = f"{gene}_{allele}"
+                    allele_count = bin_df[col_name].sum() if col_name in bin_df else 0
+                    freq = allele_count / total if total > 0 else 0
+                    if expected_freq > 0:
+                        deviation = 100 * (freq - expected_freq) / expected_freq
                     else:
-                        freq_matrix[bin_idx, allele_idx] = 0
-            
-            freq_df = pd.DataFrame(
-                freq_matrix, 
-                index=bin_labels,
-                columns=all_alleles
-            )
-            
+                        deviation = 0
+                    row.append(deviation)
+                deviation_matrix.append(row)
+            deviation_df = pd.DataFrame(deviation_matrix, index=bin_labels, columns=alleles)
             plt.figure(figsize=(12, 8))
-            sns.heatmap(freq_df, cmap="viridis", annot=False, 
-                      cbar_kws={'label': 'Relative Frequency'})
-            
-            plt.title(f'Relative Frequency of {gene} by Epoch for {agent_type} Agents')
+            sns.heatmap(deviation_df, cmap="coolwarm", center=0, annot=False, cbar_kws={'label': '% Deviation from Uniform'}, vmin=-100, vmax=100)
+            plt.title(f'Deviation from Uniform Frequency of {gene} by Epoch for {agent_type} Agents')
             plt.xlabel('Gene Values')
             plt.ylabel('Epoch Bins')
             plt.tight_layout()
-            
-            output_path = os.path.join(agent_dir, f"{gene}_heatmap.png")
+            output_path = os.path.join(output_dir, f"{agent_type}_{gene}_heatmap.png")
             plt.savefig(output_path, dpi=300)
             plt.close()
-            
             print(f"Saved gene heatmap to {output_path}")
 
+def plot_agent_count_boxplot_by_bins(summary_stats, agent_types, epochs, output_dir):
+    """Create a boxplot showing agent number grouped in 10 epoch bins for each agent type using a DataFrame,
+    and overlay a line on the 2nd y-axis showing the percentage of runs that reached each epoch bin."""
+    if not epochs:
+        return
+
+    # Define bins and labels
+    min_epoch = 1
+    max_epoch = epochs
+    bin_edges = np.linspace(min_epoch, max_epoch, 11)
+    bin_labels = [f"{int(bin_edges[i])}-{int(bin_edges[i+1])}" for i in range(len(bin_edges) - 1)]
+
+    # Add a new column for epoch bins in the DataFrame
+    summary_stats['epoch_bin'] = pd.cut(
+        summary_stats['epoch'], 
+        bins=bin_edges, 
+        labels=bin_labels, 
+        include_lowest=True
+    )
+
+    # Calculate the percentage of runs that reached each epoch bin
+    run_counts = summary_stats.groupby('epoch_bin')['run'].nunique()
+    total_runs = summary_stats['run'].nunique()
+    run_percentages = (run_counts / total_runs) * 100
+
+    # Prepare data for boxplot
+    plt.figure(figsize=(14, 8))
+    ax1 = plt.gca()  # Primary y-axis
+    for idx, agent_type in enumerate(agent_types):
+        agent_data = summary_stats[summary_stats['agent_type'] == agent_type]
+        sns.boxplot(
+            x='epoch_bin', 
+            y='count', 
+            data=agent_data, 
+            width=0.6, 
+            color=plt.cm.tab10(idx), 
+            boxprops=dict(alpha=0.5),
+            ax=ax1
+        )
+
+    # Customize primary y-axis
+    ax1.set_yscale('log')  # Use log scale for the y-axis
+    ax1.set_xlabel('Epoch Bins')
+    ax1.set_ylabel('Agent Number (Log Scale)')
+    ax1.set_title('Boxplot of Agent Number by Epoch Bins')
+    ax1.tick_params(axis='x', rotation=45)
+    ax1.legend(agent_types, title="Agent Type")
+
+    # Add secondary y-axis for run percentages
+    ax2_color = '#AEC6CF'  # Pastel blue
+    ax2 = ax1.twinx()
+    ax2.plot(bin_labels, run_percentages, color=ax2_color, marker='o', linestyle='-', label='Run Percentage')  # Pastel blue
+    ax2.set_ylabel('Percentage of Runs (%)', color=ax2_color)
+    ax2.tick_params(axis='y', labelcolor=ax2_color)
+    ax2.set_ylim(0, 100)
+
+    # Add legend for the secondary y-axis
+    ax2.legend(loc='upper right')
+
+    # Finalize and save plot
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'agent_count_boxplot_by_bins.png'))
+    plt.close()
+
+def plot_agent_X_boxplot_by_bins(summary_stats, agent_types, epochs, output_dir, row_name, y_label, title):
+    """Create a boxplot showing agent X grouped in 10 epoch bins for each agent type using a DataFrame."""
+    if not epochs:
+        return
+
+    # Define bins and labels
+    min_epoch = 1
+    max_epoch = epochs
+    bin_edges = np.linspace(min_epoch, max_epoch, 11)
+    bin_labels = [f"{int(bin_edges[i])}-{int(bin_edges[i+1])}" for i in range(len(bin_edges) - 1)]
+
+    # Add a new column for epoch bins in the DataFrame
+    summary_stats['epoch_bin'] = pd.cut(
+        summary_stats['epoch'],
+        bins=bin_edges,
+        labels=bin_labels,
+        include_lowest=True
+    )
+
+    plt.figure(figsize=(14, 8))
+    ax = plt.gca()
+    for idx, agent_type in enumerate(agent_types):
+        agent_data = summary_stats[summary_stats['agent_type'] == agent_type]
+        sns.boxplot(
+            x='epoch_bin',
+            y=row_name,
+            data=agent_data,
+            width=0.6,
+            color=plt.cm.tab10(idx),
+            boxprops=dict(alpha=0.5),
+            ax=ax
+        )
+
+    ax.set_xlabel('Epoch Bins')
+    ax.set_ylabel(y_label)
+    ax.set_title(title)
+    ax.tick_params(axis='x', rotation=45)
+    ax.legend(agent_types, title="Agent Type")
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, f'{row_name}_boxplot_by_bins.png'))
+    plt.close()
+
+
+def plot_agent_energy_boxplot_by_bins(summary_stats, agent_types, epochs, output_dir):
+    plot_agent_X_boxplot_by_bins(
+        summary_stats, 
+        agent_types, 
+        epochs, 
+        output_dir, 
+        row_name='avg_energy', 
+        y_label='Average Energy', 
+        title='Boxplot of Agent Average Energy by Epoch Bins'
+    )
+    return
+
+def plot_agent_age_boxplot_by_bins(summary_stats, agent_types, epochs, output_dir):
+    plot_agent_X_boxplot_by_bins(
+        summary_stats, 
+        agent_types, 
+        epochs, 
+        output_dir, 
+        row_name='avg_age', 
+        y_label='Average Age', 
+        title='Boxplot of Agent Average Age by Epoch Bins'
+    )
+    return
+
+
 def write_summary_data(summary_stats, output_dir="plots"):
-    """Write summary data to text files"""
+    """Write summary data to CSV files using pandas DataFrame"""
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     
-    epochs = [e for e in sorted(summary_stats.keys()) if e >= 1]
-    if not epochs:
-        print("No epoch data starting from epoch 1. Cannot write summary data.")
-        return
-        
-    agent_types = set()
-    for epoch_data in summary_stats.values():
-        agent_types.update(epoch_data.keys())
-    agent_types = sorted(agent_types)
+    # Save the entire summary_stats DataFrame to a CSV file
+    summary_file = os.path.join(output_dir, 'summary_stats.csv')
+    summary_stats.to_csv(summary_file, index=False)
+    print(f"Summary statistics saved to {summary_file}")
     
-    with open(os.path.join(output_dir, 'agent_counts_summary.csv'), 'w') as f:
-        f.write("Epoch," + ",".join(agent_types) + "\n")
-        for epoch in epochs:
-            counts = [str(summary_stats[epoch].get(agent_type, {}).get("count", 0)) for agent_type in agent_types]
-            f.write(f"{epoch}," + ",".join(counts) + "\n")
-    
-    with open(os.path.join(output_dir, 'avg_energy_summary.csv'), 'w') as f:
-        f.write("Epoch," + ",".join(agent_types) + "\n")
-        for epoch in epochs:
-            energies = [str(round(summary_stats[epoch].get(agent_type, {}).get("avg_energy", 0), 2)) for agent_type in agent_types]
-            f.write(f"{epoch}," + ",".join(energies) + "\n")
-    
-    with open(os.path.join(output_dir, 'avg_age_summary.csv'), 'w') as f:
-        f.write("Epoch," + ",".join(agent_types) + "\n")
-        for epoch in epochs:
-            ages = [str(round(summary_stats[epoch].get(agent_type, {}).get("avg_age", 0), 2)) for agent_type in agent_types]
-            f.write(f"{epoch}," + ",".join(ages) + "\n")
-    
-    for agent_type in agent_types:
-        all_genes = set()
-        for epoch_data in summary_stats.values():
-            if agent_type in epoch_data and "allele_counts" in epoch_data[agent_type]:
-                all_genes.update(epoch_data[agent_type]["allele_counts"].keys())
-        
-        for gene in all_genes:
-            all_alleles = set()
-            for epoch in epochs:
-                if (agent_type in summary_stats[epoch] and 
-                    "allele_counts" in summary_stats[epoch][agent_type] and
-                    gene in summary_stats[epoch][agent_type]["allele_counts"]):
-                    all_alleles.update(summary_stats[epoch][agent_type]["allele_counts"][gene].keys())
-            
-            all_alleles = sorted(all_alleles)
-            filename = f'allele_{agent_type}_{gene}_summary.csv'
-            with open(os.path.join(output_dir, filename), 'w') as f:
-                f.write("Epoch," + ",".join([f"Allele_{a}" for a in all_alleles]) + "\n")
-                for epoch in epochs:
-                    counts = []
-                    for allele in all_alleles:
-                        if (agent_type in summary_stats[epoch] and 
-                            "allele_counts" in summary_stats[epoch][agent_type] and
-                            gene in summary_stats[epoch][agent_type]["allele_counts"]):
-                            counts.append(str(summary_stats[epoch][agent_type]["allele_counts"][gene].get(allele, 0)))
-                        else:
-                            counts.append("0")
-                    f.write(f"{epoch}," + ",".join(counts) + "\n")
 
 def main():
+    global args
     args = parse_arguments()
-    
-    yaml_config = load_yaml_config(args.file)
 
-    yaml_file_path = Path(args.file).with_suffix(".plots").resolve()
-    # print(f"YAML file path: {yaml_file_path}")
-    
-    summary_stats = analyze_data(args.csv_files, yaml_config)
-    
-    create_plots(summary_stats, output_dir=yaml_file_path)
-    
-    write_summary_data(summary_stats)
+    yaml_file_path = ""
+
+    if args.summary_csv:
+        yaml_file_path = Path(args.summary_csv).parent
+        summary_stats = pd.read_csv(args.summary_csv)
+        max_epoch = summary_stats['epoch'].max()
+    else:
+        yaml_file_path = Path(args.file).with_suffix(".plots").resolve()
+        yaml_config = load_yaml_config(args.file)
+        summary_stats, max_epoch = analyze_data(args.csv_files, yaml_config)
+        write_summary_data(summary_stats, output_dir=yaml_file_path)
+
+    create_plots(summary_stats, max_epoch, output_dir=yaml_file_path)
 
 if __name__ == "__main__":
     main()
