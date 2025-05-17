@@ -8,11 +8,15 @@
 		"version": "0.2.0",
 		"configurations": [
 			{
-				"name": "Python: TorusWorld",
+				"name": "yapps",
 				"type": "debugpy",
 				"request": "launch",
-				"program": "gui_test.py",
+				"program": "ppS-cli.py",
+				// "program": "plot_simulation.py",
 				"args": [
+					// "--file", "data/eq_vs_ne_vs_rand_4/rabbit_fox2_random.yml", "data/eq_vs_ne_vs_rand_4/rabbit_fox2_random/rabbit_fox2_random-run-9.csv",
+					// "--verbose","--summary-csv","data/eq_vs_ne_vs_rand_4/rabbit_fox2_random.plots/summary_stats.csv",
+					"--file", "data/simple/rabbit.yml", "--run", "20", "--epoch", "50", "--parallel", "6", "--meta-search"
 				],
 				"console": "integratedTerminal"
 			}

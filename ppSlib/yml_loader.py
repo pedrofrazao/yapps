@@ -76,9 +76,30 @@ class YMLArenaLoader:
 
 
     @staticmethod
-    def load_arena_from_yml(filepath):
+    def load_arena_from_yml(filepath, overwrite=None, verbose=False):
         with open(filepath, 'r') as file:
             config = yaml.safe_load(file)
+
+        # force values on the loaded config
+        if overwrite is not None:
+            if 'agents' in config['arena']:
+                ## need to be set by hand
+                for agent in config['arena']['agents']:
+                    if agent['type'] in overwrite['arena']['agents']:
+                        for key, value in overwrite['arena']['agents'][agent['type']].items():
+                            if key in agent:
+                                if verbose:
+                                    print(f"Overwriting {key} of agent {agent['type']} with {value}")
+                                agent[key] = value
+                            else:
+                                if verbose:
+                                    print(f"Adding {key} to agent {agent['type']} with {value}")
+                                agent[key] = value
+
+        # else:
+        #     for key, value in overwrite.items():
+        #         if key in config:
+        #             config[key] = value
 
         arena_config = config['arena']
         rows = arena_config['rows']

@@ -29,11 +29,16 @@ for((I=100;I<(($RUNCOUNT+100));I=I+1));  do ./ppS-cli.py --epochs $EPOCHS --batc
 Or better
 
 ```
-./ppS-cli.py --batch -f data/simple/rabbit.yml --parallel 4 --epochs 50 --runs 50 --progress
+ppS-cli.py --batch -f data/simple/rabbit.yml --parallel 4 --epochs 50 --runs 50 --progress
 ```
 
 ## gen plots ##
 
+```
+plot_simulation.py --file rabbit_fox2_equal_priority.yml rabbit_fox2_equal_priority/rabbit_fox2_equal_priority-run-*.csv
+```
+
+OLD
 ```
 python3 plot_simulation.py --file data/eq_vs_ne_vs_rand_2/rabbit_fox2.yml  data/eq_vs_ne_vs_rand_2/rabbit_fox2/rabbit_fox2-*.csv
 ```
