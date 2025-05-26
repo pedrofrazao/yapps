@@ -104,8 +104,8 @@ class YMLArenaLoader:
                                             and isinstance(value, dict) ):
                             deep_update(original[key], value)
                         else:
-                            if True:
-                                print(f"Overwriting {key} with {value}")
+                            # if True:
+                            #     print(f"Overwriting {key} with {value}")
                             # Try to convert string values to int or float if needed
                             if isinstance(value, str):
                                 try:
@@ -121,7 +121,7 @@ class YMLArenaLoader:
             # Apply overwrite values to config
             deep_update(config, overwrite)
 
-        print(f"Loading arena from {filepath} with config: {config}")
+        # print(f"Loading arena from {filepath} with config: {config}")
 
 
         arena_config = config['arena']
