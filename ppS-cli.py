@@ -21,8 +21,28 @@ cols=16
 
 
 def load_from_file(args, **kwargs):
+    # process the overwrite values
+    overwrite = {}
+    for k in args.override:
+        if '=' in k:
+            key, value = k.split('=', 1)
+            keys = key.split('/')
+            if len(keys) > 1:
+                # Nested keys, e.g., arena/rows=20
+                current = overwrite
+                for subkey in keys[:-1]:
+                    if subkey not in current:
+                        current[subkey] = {}
+                    current = current[subkey]
+                current[keys[-1]] = value
+            else:
+                overwrite[key] = value
+        else:
+            print(f"Invalid override format: {k}. Use KEY=VALUE format.")
+            exit(1)
+        
     if args.file:
-        return YMLArenaLoader.load_arena_from_yml(args.file, kwarena=kwargs )
+        return YMLArenaLoader.load_arena_from_yml(args.file, overwrite=overwrite, kwarena=kwargs )
 
 
 def _load_demo_grass():
@@ -97,6 +117,8 @@ def load_args():
     parser.add_argument('--batch', action='store_true', help='run without output', default=True)
     parser.add_argument('--parallel', type=int, help='Number of concurrent processes to run simulations', default=1)
     parser.add_argument('--progress', action='store_true', help='Show simulation execution progress', default=False)
+    parser.add_argument('-o', '--override', metavar='KEY=VALUE', action='append', 
+                       help='Override values from the YAML file (e.g., -o rows=20 -o cols=30)', default=[])
     # parser.add_argument('-h', '--help', action='help', help='Show this help message and exit')
     args = parser.parse_args()
 

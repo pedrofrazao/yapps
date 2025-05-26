@@ -76,37 +76,60 @@ class YMLArenaLoader:
 
 
     @staticmethod
-    def load_arena_from_yml(filepath, overwrite=None, verbose=False):
+    def load_arena_from_yml(filepath, overwrite=None, verbose=False, kwarena={}):
         with open(filepath, 'r') as file:
             config = yaml.safe_load(file)
 
-        # force values on the loaded config
         if overwrite is not None:
-            if 'agents' in config['arena']:
-                ## need to be set by hand
-                for agent in config['arena']['agents']:
-                    if agent['type'] in overwrite['arena']['agents']:
-                        for key, value in overwrite['arena']['agents'][agent['type']].items():
-                            if key in agent:
-                                if verbose:
-                                    print(f"Overwriting {key} of agent {agent['type']} with {value}")
-                                agent[key] = value
-                            else:
-                                if verbose:
-                                    print(f"Adding {key} to agent {agent['type']} with {value}")
-                                agent[key] = value
+            def deep_update(original, update):
+                """Recursively update a nested dictionary."""
+                if isinstance(original, list) and isinstance(update, dict):
+                    # find the first matching dict in the list
+                    if len(update) != 1:
+                        raise ValueError("Update dictionary must have exactly one key-value pair for list updates.")
+                    
+                    found = False
+                    key, value = next(iter(update.items()))
+                    for vk,vv in value.items():
+                        for i, item in enumerate(original):
+                            if( isinstance(item, dict) and key in item
+                                and key in update and item[key] == vk ):
+                                found = True
+                                deep_update(original[i], vv)
+                                break
+                elif isinstance(original, dict) and isinstance(update, dict):
+                    for key, value in update.items():
+                        if( key in original and ( isinstance(original[key], dict)
+                                                or isinstance(original[key], list) )
+                                            and isinstance(value, dict) ):
+                            deep_update(original[key], value)
+                        else:
+                            if True:
+                                print(f"Overwriting {key} with {value}")
+                            # Try to convert string values to int or float if needed
+                            if isinstance(value, str):
+                                try:
+                                    if '.' in value:
+                                        value = float(value)
+                                    else:
+                                        value = int(value)
+                                except (ValueError, TypeError):
+                                    # Keep as string if conversion fails
+                                    pass
+                            original[key] = value
+                        
+            # Apply overwrite values to config
+            deep_update(config, overwrite)
 
-        # else:
-        #     for key, value in overwrite.items():
-        #         if key in config:
-        #             config[key] = value
+        print(f"Loading arena from {filepath} with config: {config}")
+
 
         arena_config = config['arena']
         rows = arena_config['rows']
         cols = arena_config['cols']
         torus = arena_config.get('torus', True)  # Default to False if not specified
         sync_model = arena_config.get('sync_model', 'OASCycl')
-        arena = ArenaSyncModel(rows, cols, torus=torus, sync_model=sync_model)
+        arena = ArenaSyncModel(rows, cols, torus=torus, sync_model=sync_model, **kwarena)
 
         for agent_config in arena_config['agents']:
             agent_type = agent_config['type']
