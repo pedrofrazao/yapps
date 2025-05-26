@@ -17,6 +17,8 @@ class asmStats():
         self._stats_data = {}
         self.debug = kwargs.get('debug', os.environ.get('DEBUG', False))
         self._stats_summary = None
+        dump_stats = kwargs.get('dump_stats', None)
+        self.dump_stats = dump_stats if callable(dump_stats) else None
 
     def run_step(self):
         if self.collect_at_step ==0:
@@ -24,6 +26,11 @@ class asmStats():
         self.step += 1
         if self.step % self.collect_at_step == 0:
             self.collect_stats()
+
+        if self.dump_stats is not None:
+            for s in self.get_stats(reset=True):
+                self.dump_stats(s)
+
 
     def collect_stats(self):
         self._stats_data[self.step] = {}
@@ -49,7 +56,8 @@ class asmStats():
                     v = self._stats_data[self.step].get(ocls, 0)
                     self._stats_data[self.step][ocls] = v + 1
 
-    def get_stats(self):
+
+    def get_stats(self,reset=False):
         s = []
         for step, stats in self._stats_data.items():
             for k, v in stats.items():
@@ -60,6 +68,9 @@ class asmStats():
                         s.append( olist )
                 else:
                     s.append([step,k,v] )
+        # clear the stats data if reset is True
+        if reset:
+            self._stats_data = {}
         return s
 
 

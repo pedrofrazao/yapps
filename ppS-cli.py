@@ -20,9 +20,9 @@ rows=16
 cols=16
 
 
-def load_from_file(args):
+def load_from_file(args, **kwargs):
     if args.file:
-        return YMLArenaLoader.load_arena_from_yml(args.file)
+        return YMLArenaLoader.load_arena_from_yml(args.file, kwarena=kwargs )
 
 
 def _load_demo_grass():
@@ -253,8 +253,14 @@ def main_batch(args):
                 print(f"\rRun {run_number}/{args.runs} ({run_number/args.runs*100:.1f}%)", end="", flush=True)
             elif args.runs == 1:
                 print(f"\n--- Starting run --- Output: {output_file} ---\n")
-                
-            arena = load_from_file(args)
+
+            f = open(output_file, 'w')
+            def _write_stats(f,i):
+                if i is not None:
+                    stat_line = ",".join([str(v) for v in i])
+                    f.write(stat_line + "\n")
+
+            arena = load_from_file(args, dump_stats=lambda x: _write_stats(f,x))
             if arena is None:
                 # load default
                 arena = _load_demo_arena(args)
@@ -269,17 +275,17 @@ def main_batch(args):
                 print(arena)
 
             # Write results to output file
-            with open(output_file, 'w') as f:
-                # Write the final arena state
-                f.write(str(arena) + "\n\n")
+            # with open(output_file, 'w') as f:
+            #     # Write the final arena state
+            #     f.write(str(arena) + "\n\n")
 
-                # Write the stats
-                for i in arena.get_stats():
-                    if i is not None:
-                        stat_line = ",".join([str(v) for v in i])
-                        f.write(stat_line + "\n")
-                        if args.runs == 1:
-                            print(",".join([str(v) for v in i]))
+            #     # Write the stats
+            #     for i in arena.get_stats():
+            #         if i is not None:
+            #             stat_line = ",".join([str(v) for v in i])
+            #             f.write(stat_line + "\n")
+            #             if args.runs == 1:
+            #                 print(",".join([str(v) for v in i]))
         
         if args.progress and args.runs > 1:
             print()  # Add newline after progress display
