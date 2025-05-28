@@ -33,19 +33,6 @@ def load_yaml_config(yaml_path):
 
 def extract_data_from_csv(csv_file, arena_config):
     """Extract data from CSV file by parsing its specific format, using ArenaConfig for gene naming"""
-    with open(csv_file, 'r') as f:
-        content = f.read()
-    
-    # Find where actual data starts after the grid visualization
-    lines = content.splitlines()
-    data_start = 0
-    for i, line in enumerate(lines):
-        if re.match(r'\d+,\w+,\d+,\d+,\d+,.*', line):
-            data_start = i
-            break
-    
-    data_lines = lines[data_start:]
-    
     # Initialize data structures
     epoch_data = {}
     allele_data = {}
@@ -53,48 +40,61 @@ def extract_data_from_csv(csv_file, arena_config):
     # Get gene mappings from config
     agent_genes = arena_config.get_agent_genes()
     
-    for line in data_lines:
-        parts = line.split(',')
-        if len(parts) >= 6:
-            try:
-                epoch = int(parts[0])
-                    
-                agent_type = parts[1]
-                energy = int(parts[2])
-                age = int(parts[3])
-                
-                # Initialize data structures if needed
-                if epoch not in epoch_data:
-                    epoch_data[epoch] = defaultdict(list)
-                if epoch not in allele_data:
-                    allele_data[epoch] = {}
-                if agent_type not in allele_data[epoch]:
-                    allele_data[epoch][agent_type] = defaultdict(lambda: defaultdict(int))
-                
-                # Add agent data
-                epoch_data[epoch][agent_type].append({
-                    "energy": energy,
-                    "age": age
-                })
-                
-                # Parse allele information
-                allele_info = parts[5]
-                allele_parts = allele_info.split('|')
-                
-                if agent_type not in allele_data[epoch]:
-                    allele_data[epoch][agent_type] = defaultdict(lambda: defaultdict(int))
+    # Process the file line by line
+    with open(csv_file, 'r') as f:
+        # Find where the actual data starts (skip the grid visualization)
+        data_started = False
+        for line in f:
+            # Check if this line matches the pattern of actual data
+            if not data_started and re.match(r'\d+,\w+,\d+,\d+,\d+,.*', line):
+                data_started = True
+            if not data_started:
+                continue
 
-                # Add allele data
-                i=0
-                for v in allele_parts:
-                    gene_name = agent_genes[agent_type][i]
-                    if gene_name not in allele_data[epoch][agent_type]:
-                        allele_data[epoch][agent_type][gene_name] = defaultdict(int)
-                    allele_data[epoch][agent_type][ gene_name ][v] += 1
-                    i+=1
+            parts = line.strip().split(',')
+            if len(parts) >= 6:
+                try:
+                    epoch = int(parts[0])
+                    agent_type = parts[1]
+                    energy = int(parts[2])
+                    age = int(parts[3])
                     
-            except Exception as e:
-                print(f"Error processing line: {line} - {e}")
+                    # Initialize data structures if needed
+                    if epoch not in epoch_data:
+                        epoch_data[epoch] = defaultdict(list)
+                    if epoch not in allele_data:
+                        allele_data[epoch] = {}
+                    if agent_type not in allele_data[epoch]:
+                        allele_data[epoch][agent_type] = defaultdict(lambda: defaultdict(int))
+                    
+                    # Add agent data
+                    epoch_data[epoch][agent_type].append({
+                        "energy": energy,
+                        "age": age
+                    })
+                    
+                    # Parse allele information
+                    try:
+                        allele_info = parts[5]
+                        allele_parts = allele_info.split('|')
+                        
+                        # Verify if allele_parts has the expected format
+                        if allele_parts and len(allele_parts) <= len(agent_genes.get(agent_type, [])):
+                            # Add allele data
+                            i = 0
+                            for v in allele_parts:
+                                if i < len(agent_genes.get(agent_type, [])):
+                                    gene_name = agent_genes[agent_type][i]
+                                    if gene_name not in allele_data[epoch][agent_type]:
+                                        allele_data[epoch][agent_type][gene_name] = defaultdict(int)
+                                    allele_data[epoch][agent_type][gene_name][v] += 1
+                                    i += 1
+                    except (IndexError, KeyError):
+                        # Ignore if allele info is missing or not in the correct format
+                        pass
+                        
+                except Exception as e:
+                    print(f"Error processing line: {line.strip()} - {e}")
     
     return epoch_data, allele_data
 
@@ -416,7 +416,7 @@ def plot_gene_heatmaps(summary_stats, agent_types, epochs, output_dir):
         agent_data = summary_stats[summary_stats['agent_type'] == agent_type]
         for gene in genes:
             # Find all alleles for this gene
-            alleles = sorted([ int(col.split('_')[-1]) for col in gene_cols if col.startswith(gene + '_')])
+            alleles = sorted([float(col.split('_')[-1]) for col in gene_cols if col.startswith(gene + '_')])
             if not alleles:
                 continue
             n_alleles = len(alleles)
@@ -429,6 +429,11 @@ def plot_gene_heatmaps(summary_stats, agent_types, epochs, output_dir):
                 row = []
                 for allele in alleles:
                     col_name = f"{gene}_{allele}"
+                    # Remove trailing ".0" from the column name if it's a float with zero decimal part
+                    if allele == int(allele):
+                        col_name = f"{gene}_{int(allele)}"
+                    else:
+                        col_name = f"{gene}_{allele}"
                     allele_count = bin_df[col_name].sum() if col_name in bin_df else 0
                     freq = allele_count / total if total > 0 else 0
                     if expected_freq > 0:
@@ -474,20 +479,24 @@ def plot_agent_count_boxplot_by_bins(summary_stats, agent_types, epochs, output_
     total_runs = summary_stats['run'].nunique()
     run_percentages = (run_counts / total_runs) * 100
 
-    # Prepare data for boxplot
+    # Prepare data for boxplot with side-by-side agent types
     plt.figure(figsize=(14, 8))
     ax1 = plt.gca()  # Primary y-axis
-    for idx, agent_type in enumerate(agent_types):
-        agent_data = summary_stats[summary_stats['agent_type'] == agent_type]
-        sns.boxplot(
-            x='epoch_bin', 
-            y='count', 
-            data=agent_data, 
-            width=0.6, 
-            color=plt.cm.tab10(idx), 
-            boxprops=dict(alpha=0.5),
-            ax=ax1
-        )
+    
+    # Get data ready for seaborn's boxplot with side-by-side groups
+    data_for_plot = summary_stats[summary_stats['agent_type'].isin(agent_types)].copy()
+    
+    # Use seaborn's catplot which supports side-by-side boxes via the hue parameter
+    sns.boxplot(
+        x='epoch_bin',
+        y='count',
+        hue='agent_type',
+        data=data_for_plot,
+        palette='tab10',
+        width=0.8,
+        ax=ax1,
+        dodge=True  # This puts the boxes side by side
+    )
 
     # Customize primary y-axis
     ax1.set_yscale('log')  # Use log scale for the y-axis
@@ -495,18 +504,24 @@ def plot_agent_count_boxplot_by_bins(summary_stats, agent_types, epochs, output_
     ax1.set_ylabel('Agent Number (Log Scale)')
     ax1.set_title('Boxplot of Agent Number by Epoch Bins')
     ax1.tick_params(axis='x', rotation=45)
-    ax1.legend(agent_types, title="Agent Type")
+    
+    # Move legend to a better position
+    ax1.legend(title="Agent Type")
 
     # Add secondary y-axis for run percentages
     ax2_color = '#AEC6CF'  # Pastel blue
     ax2 = ax1.twinx()
-    ax2.plot(bin_labels, run_percentages, color=ax2_color, marker='o', linestyle='-', label='Run Percentage')  # Pastel blue
+    ax2.plot(range(len(bin_labels)), run_percentages, color=ax2_color, marker='o', linestyle='-', label='Run Percentage')
     ax2.set_ylabel('Percentage of Runs (%)', color=ax2_color)
     ax2.tick_params(axis='y', labelcolor=ax2_color)
     ax2.set_ylim(0, 100)
+    ax2.set_xticks(range(len(bin_labels)))
+    ax2.set_xticklabels([])  # Hide x-labels on second axis
 
     # Add legend for the secondary y-axis
-    ax2.legend(loc='upper right')
+    lines, labels = ax1.get_legend_handles_labels()
+    line2, label2 = ax2.get_legend_handles_labels()
+    ax2.legend(line2, label2, loc='upper right')
 
     # Finalize and save plot
     plt.tight_layout()
@@ -532,25 +547,30 @@ def plot_agent_X_boxplot_by_bins(summary_stats, agent_types, epochs, output_dir,
         include_lowest=True
     )
 
+    # Prepare data for boxplot with side-by-side agent types
     plt.figure(figsize=(14, 8))
     ax = plt.gca()
-    for idx, agent_type in enumerate(agent_types):
-        agent_data = summary_stats[summary_stats['agent_type'] == agent_type]
-        sns.boxplot(
-            x='epoch_bin',
-            y=row_name,
-            data=agent_data,
-            width=0.6,
-            color=plt.cm.tab10(idx),
-            boxprops=dict(alpha=0.5),
-            ax=ax
-        )
+    
+    # Get data ready for seaborn's boxplot with side-by-side groups
+    data_for_plot = summary_stats[summary_stats['agent_type'].isin(agent_types)].copy()
+    
+    # Use seaborn's boxplot with the hue parameter for side-by-side boxes
+    sns.boxplot(
+        x='epoch_bin',
+        y=row_name,
+        hue='agent_type',
+        data=data_for_plot,
+        palette='tab10',
+        width=0.8,
+        ax=ax,
+        dodge=True  # This puts the boxes side by side
+    )
 
     ax.set_xlabel('Epoch Bins')
     ax.set_ylabel(y_label)
     ax.set_title(title)
     ax.tick_params(axis='x', rotation=45)
-    ax.legend(agent_types, title="Agent Type")
+    ax.legend(title="Agent Type")
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f'{row_name}_boxplot_by_bins.png'))
     plt.close()
