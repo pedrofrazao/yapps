@@ -158,12 +158,6 @@ def create_plots(summary_stats, epochs, output_dir="plots"):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     
-    # # Prepare data for plotting - start from epoch 1
-    # epochs = [e for e in sorted(summary_stats.keys()) if e >= 1]
-    # if not epochs:
-    #     print("No epoch data starting from epoch 1. Cannot create plots.")
-    #     return
-        
     agent_types = sorted(summary_stats['agent_type'].unique())
     
 
@@ -172,55 +166,6 @@ def create_plots(summary_stats, epochs, output_dir="plots"):
     plot_agent_age_boxplot_by_bins(summary_stats, agent_types, epochs, output_dir)
 
     plot_gene_heatmaps(summary_stats, agent_types, epochs, output_dir)
-
-    
-    # # 4. Plot allele distribution for each agent type and gene
-    # for agent_type in agent_types:
-    #     all_genes = set()
-    #     for epoch_data in summary_stats.values():
-    #         if agent_type in epoch_data and "allele_counts" in epoch_data[agent_type]:
-    #             all_genes.update(epoch_data[agent_type]["allele_counts"].keys())
-        
-    #     for gene in all_genes:
-    #         plt.figure(figsize=(12, 7))
-    #         all_alleles = set()
-    #         for epoch in epochs:
-    #             if (agent_type in summary_stats[epoch] and 
-    #                 "allele_counts" in summary_stats[epoch][agent_type] and
-    #                 gene in summary_stats[epoch][agent_type]["allele_counts"]):
-    #                 all_alleles.update(summary_stats[epoch][agent_type]["allele_counts"][gene].keys())
-            
-    #         for allele in sorted(all_alleles):
-    #             counts = []
-    #             for epoch in epochs:
-    #                 if (agent_type in summary_stats[epoch] and 
-    #                     "allele_counts" in summary_stats[epoch][agent_type] and
-    #                     gene in summary_stats[epoch][agent_type]["allele_counts"]):
-    #                     counts.append(summary_stats[epoch][agent_type]["allele_counts"][gene].get(allele, 0))
-    #                 else:
-    #                     counts.append(0)
-    #             plt.plot(epochs, counts, label=f'Allele {allele}')
-            
-    #         plt.xlabel('Epoch')
-    #         plt.ylabel('Count')
-    #         plt.title(f'Gene {gene} Allele Distribution for {agent_type}')
-    #         plt.legend()
-    #         plt.grid(True)
-    #         plt.savefig(os.path.join(output_dir, f'allele_{agent_type}_{gene}.png'))
-    #         plt.close()
-    
-    # # 5. Plot average age by epoch bins
-    # plot_age_by_bins(summary_stats, agent_types, epochs, output_dir)
-    
-    # # 6. Plot agent count by epoch bins
-    # plot_agent_count_by_bins(summary_stats, agent_types, epochs, output_dir)
-    
-    # # 7. Plot average energy by epoch bins
-    # plot_energy_by_bins(summary_stats, agent_types, epochs, output_dir)
-    
-    # 8. Plot gene heatmaps showing relative frequency by epoch bins
-
-
 
 
 def plot_agent_count_by_bins(summary_stats, agent_types, epochs, output_dir):
@@ -270,7 +215,6 @@ def plot_agent_count_by_bins(summary_stats, agent_types, epochs, output_dir):
     plt.xlabel('Epoch Bins')
     plt.ylabel('Average Agent Count')
     plt.title('Average Agent Count by Epoch Bins')
-    plt.xticks(x, bin_labels, rotation=45)
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
@@ -407,12 +351,10 @@ def plot_gene_heatmaps(summary_stats, agent_types, epochs, output_dir):
     gene_cols = [col for col in summary_stats.columns if '_' in col and col not in ['run','epoch','agent_type','count','avg_energy','avg_age','epoch_bin']]
     genes = set('_'.join(col.split('_')[:-1]) for col in gene_cols)
 
-    # heatmap_dir = os.path.join(output_dir, "gene_heatmaps")
-    # os.makedirs(heatmap_dir, exist_ok=True)
+    # Sort agent_types to ensure consistent ordering
+    ordered_agent_types = sorted(agent_types)
 
-    for agent_type in agent_types:
-        # agent_dir = os.path.join(heatmap_dir, f"agent_{agent_type}")
-        # os.makedirs(agent_dir, exist_ok=True)
+    for agent_type in ordered_agent_types:
         agent_data = summary_stats[summary_stats['agent_type'] == agent_type]
         for gene in genes:
             # Find all alleles for this gene
@@ -456,7 +398,7 @@ def plot_gene_heatmaps(summary_stats, agent_types, epochs, output_dir):
 
 def plot_agent_count_boxplot_by_bins(summary_stats, agent_types, epochs, output_dir):
     """Create a boxplot showing agent number grouped in 10 epoch bins for each agent type using a DataFrame,
-    and overlay a line on the 2nd y-axis showing the percentage of runs that reached each epoch bin."""
+    and overlay a line on the 2nd y-axis showing the percentage of runs that reached each epoch bin with all agent types present."""
     if not epochs:
         return
 
@@ -474,28 +416,48 @@ def plot_agent_count_boxplot_by_bins(summary_stats, agent_types, epochs, output_
         include_lowest=True
     )
 
-    # Calculate the percentage of runs that reached each epoch bin
-    run_counts = summary_stats.groupby('epoch_bin')['run'].nunique()
+    # Sort agent_types to ensure consistent ordering
+    ordered_agent_types = sorted(agent_types)
+    
+    # Create a consistent color palette based on ordered agent types
+    color_palette = dict(zip(ordered_agent_types, sns.color_palette("tab10", len(ordered_agent_types))))
+
+    # Calculate the percentage of runs that reached each epoch bin with all agent types present
+    run_percentages = []
     total_runs = summary_stats['run'].nunique()
-    run_percentages = (run_counts / total_runs) * 100
+    
+    for bin_label in bin_labels:
+        # For each bin, find runs where all agent types are present
+        bin_data = summary_stats[summary_stats['epoch_bin'] == bin_label]
+        runs_with_all_agents = []
+        
+        for run_id in bin_data['run'].unique():
+            run_data = bin_data[bin_data['run'] == run_id]
+            # Check if all agent types are present in this run for this bin
+            if set(run_data['agent_type'].unique()) == set(ordered_agent_types):
+                runs_with_all_agents.append(run_id)
+        
+        # Calculate percentage
+        percent = (len(runs_with_all_agents) / total_runs) * 100 if total_runs > 0 else 0
+        run_percentages.append(percent)
 
     # Prepare data for boxplot with side-by-side agent types
     plt.figure(figsize=(14, 8))
     ax1 = plt.gca()  # Primary y-axis
     
     # Get data ready for seaborn's boxplot with side-by-side groups
-    data_for_plot = summary_stats[summary_stats['agent_type'].isin(agent_types)].copy()
+    data_for_plot = summary_stats[summary_stats['agent_type'].isin(ordered_agent_types)].copy()
     
-    # Use seaborn's catplot which supports side-by-side boxes via the hue parameter
+    # Use seaborn's boxplot with the hue parameter for side-by-side boxes
     sns.boxplot(
         x='epoch_bin',
         y='count',
         hue='agent_type',
         data=data_for_plot,
-        palette='tab10',
+        palette=color_palette,
         width=0.8,
         ax=ax1,
-        dodge=True  # This puts the boxes side by side
+        dodge=True
     )
 
     # Customize primary y-axis
@@ -504,7 +466,9 @@ def plot_agent_count_boxplot_by_bins(summary_stats, agent_types, epochs, output_
     ax1.set_ylabel('Agent Number (Log Scale)')
     ax1.set_title('Boxplot of Agent Number by Epoch Bins')
     ax1.tick_params(axis='x', rotation=45)
-    
+    ax1.set_xticks(range(len(bin_labels)))
+    ax1.set_xticklabels(bin_labels)
+
     # Move legend to a better position
     ax1.legend(title="Agent Type")
 
@@ -515,8 +479,6 @@ def plot_agent_count_boxplot_by_bins(summary_stats, agent_types, epochs, output_
     ax2.set_ylabel('Percentage of Runs (%)', color=ax2_color)
     ax2.tick_params(axis='y', labelcolor=ax2_color)
     ax2.set_ylim(0, 100)
-    ax2.set_xticks(range(len(bin_labels)))
-    ax2.set_xticklabels([])  # Hide x-labels on second axis
 
     # Add legend for the secondary y-axis
     lines, labels = ax1.get_legend_handles_labels()
@@ -547,12 +509,18 @@ def plot_agent_X_boxplot_by_bins(summary_stats, agent_types, epochs, output_dir,
         include_lowest=True
     )
 
+    # Sort agent_types to ensure consistent ordering
+    ordered_agent_types = sorted(agent_types)
+    
+    # Create a consistent color palette based on ordered agent types
+    color_palette = dict(zip(ordered_agent_types, sns.color_palette("tab10", len(ordered_agent_types))))
+
     # Prepare data for boxplot with side-by-side agent types
     plt.figure(figsize=(14, 8))
     ax = plt.gca()
     
     # Get data ready for seaborn's boxplot with side-by-side groups
-    data_for_plot = summary_stats[summary_stats['agent_type'].isin(agent_types)].copy()
+    data_for_plot = summary_stats[summary_stats['agent_type'].isin(ordered_agent_types)].copy()
     
     # Use seaborn's boxplot with the hue parameter for side-by-side boxes
     sns.boxplot(
@@ -560,10 +528,10 @@ def plot_agent_X_boxplot_by_bins(summary_stats, agent_types, epochs, output_dir,
         y=row_name,
         hue='agent_type',
         data=data_for_plot,
-        palette='tab10',
+        palette=color_palette,
         width=0.8,
         ax=ax,
-        dodge=True  # This puts the boxes side by side
+        dodge=True
     )
 
     ax.set_xlabel('Epoch Bins')
