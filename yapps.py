@@ -21,7 +21,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 def main():
     # Parse command-line arguments
-    parser = argparse.ArgumentParser(description="Run the ppS simulation.")
+    parser = argparse.ArgumentParser(description="Run the yappS simulation.")
     parser.add_argument('-f', '--file', type=str, help='File to load the arena from')
     args = parser.parse_args()
 

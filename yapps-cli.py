@@ -108,7 +108,7 @@ def _load_demo_arena(_):
 
 
 def load_args():
-    parser = argparse.ArgumentParser(description='Matrix CLI')
+    parser = argparse.ArgumentParser(description='yappS CLI')
     parser.add_argument('-f', '--file', type=str, help='File to load the arena from')
     parser.add_argument('--epochs', type=int, help='Number of epochs to run', default=100)
     parser.add_argument('--runs', type=int, help='Number of times to run the simulation (batch mode only)', default=1)
