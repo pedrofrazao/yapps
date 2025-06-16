@@ -1,3 +1,5 @@
+![yapps](images/yapps-logo.png)
+
 # yapps #
 
 yapps stands for Your Arena Predator-Prey System or, maybe...
@@ -30,16 +32,32 @@ This project has been developed in the context of a master thesis. The resulting
   - GUI - to see the agents' movement.
   - CLI - to run simulations in batch.
 
+# Installation #
+
+Download the git repository from the site `https://github.com/pedrofrazao/yapps.git`
+
+```
+git clone https://github.com/pedrofrazao/yapps.git
+```
+
+Install needed Python dependencies.
+
+```
+python3 -mvenv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
 # Usage #
 
 Some examples of usage.
 
 For the CLI
 ```
-yapps-cli.py  --file rf.yml -o arena/rows=10 -o arena/cols=10  --epoch 10
+./yapps-cli.py  --file rf.yml -o arena/rows=10 -o arena/cols=10  --epoch 10
 ```
 
 For the GUI
 ```
-yapps.py
+./yapps.py --file rf.yml
 ```
